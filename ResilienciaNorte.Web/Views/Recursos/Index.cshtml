@@ -1,0 +1,72 @@
+﻿@model IEnumerable<ResilienciaNorte.Domain.RecursoAlmacen>
+@{
+    ViewData["Title"] = "Almacén de Contingencia (BAH)";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-box-seam text-primary"></i> Almacén de Contingencia</h2>
+        <p class="text-muted small">Catálogo de Bienes de Ayuda Humanitaria (BAH) distribuidos en almacenes de Trujillo</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light py-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Filtrar por Almacén Distrital:</label>
+                <select name="distritoId" asp-items="ViewBag.Distritos" class="form-select">
+                    <option value="">-- Todos los Almacenes --</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 me-2"><i class="bi bi-filter"></i> Filtrar</button>
+                <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Código BAH</th>
+                    <th>Bien Humanitario</th>
+                    <th>Almacén / Distrito</th>
+                    <th>Unidad</th>
+                    <th>Stock Disponible</th>
+                    <th>Stock Mínimo</th>
+                    <th>Estado Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    bool stockCritico = item.StockDisponible <= item.StockMinimoSeguridad;
+                    <tr>
+                        <td class="fw-bold text-muted">@item.CodigoBAH</td>
+                        <td class="fw-bold text-dark">@item.Nombre</td>
+                        <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span></td>
+                        <td>@item.UnidadMedida</td>
+                        <td class="fw-bold fs-6 @(stockCritico ? "text-danger" : "text-success")">
+                            @item.StockDisponible.ToString("N0")
+                        </td>
+                        <td class="text-muted">@item.StockMinimoSeguridad.ToString("N0")</td>
+                        <td>
+                            @if (stockCritico)
+                            {
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-octagon"></i> Stock Crítico</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Abastecido</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

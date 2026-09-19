@@ -1,0 +1,75 @@
+﻿@model ResilienciaNorte.Domain.IncidenteEmergencia
+@{
+    ViewData["Title"] = "Reportar Emergencia";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-danger text-white py-3">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Reporte Ciudadano / Brigada de Emergencia</h4>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Registrar" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label asp-for="Titulo" class="form-label fw-bold">Título o Resumen de la Alerta</label>
+                            <input asp-for="Titulo" class="form-control" placeholder="Ej: Inundación en sector El Silencio" />
+                            <span asp-validation-for="Titulo" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label asp-for="DistritoId" class="form-label fw-bold">Distrito Afectado</label>
+                            <select asp-for="DistritoId" asp-items="ViewBag.Distritos" class="form-select">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <span asp-validation-for="DistritoId" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="TipoDesastre" class="form-label fw-bold">Tipo de Evento</label>
+                            <select asp-for="TipoDesastre" class="form-select">
+                                <option value="Inundación Pluvial">Inundación Pluvial (Lluvias)</option>
+                                <option value="Desborde de Quebrada">Desborde de Quebrada</option>
+                                <option value="Colapso de Drenaje / Desagüe">Colapso de Drenaje / Desagüe</option>
+                                <option value="Derrumbe o Daño Estructural">Derrumbe o Daño Estructural</option>
+                            </select>
+                            <span asp-validation-for="TipoDesastre" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="FamiliasAfectadas" class="form-label fw-bold">N° Familias Afectadas Aprox.</label>
+                            <input asp-for="FamiliasAfectadas" type="number" min="0" class="form-control" />
+                            <span asp-validation-for="FamiliasAfectadas" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="DireccionReferencia" class="form-label fw-bold">Dirección / Referencia Exacta</label>
+                            <input asp-for="DireccionReferencia" class="form-control" placeholder="Ej: Calle Principal Mz C Lt 12, cerca a la losa deportiva" />
+                            <span asp-validation-for="DireccionReferencia" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Descripcion" class="form-label fw-bold">Descripción Detallada de la Situación</label>
+                            <textarea asp-for="Descripcion" rows="3" class="form-control" placeholder="Indique altura del agua, bloqueo de accesos o si se requiere rescate"></textarea>
+                            <span asp-validation-for="Descripcion" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-danger px-4 fw-bold">
+                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
