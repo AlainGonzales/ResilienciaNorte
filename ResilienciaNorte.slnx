@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ResilienciaNorte.Domain/ResilienciaNorte.Domain.csproj" />
+  <Project Path="ResilienciaNorte.Repository/ResilienciaNorte.Repository.csproj" />
+  <Project Path="ResilienciaNorte.Service/ResilienciaNorte.Service.csproj" />
+  <Project Path="ResilienciaNorte.Web/ResilienciaNorte.Web.csproj" />
+</Solution>
