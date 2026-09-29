@@ -15,7 +15,7 @@ public class RecursoService : IRecursoService
 
     public async Task<IEnumerable<RecursoAlmacen>> ObtenerInventarioAsync(int? distritoId = null)
     {
-        var query = _context.Recursos
+        var query = _context.RecursosAlmacen
             .Include(r => r.Distrito)
             .AsNoTracking()
             .AsQueryable();
@@ -30,7 +30,7 @@ public class RecursoService : IRecursoService
 
     public async Task<bool> HayAlertaStockBajoAsync(int distritoId)
     {
-        return await _context.Recursos
-            .AnyAsync(r => r.DistritoId == distritoId && r.StockDisponible <= r.StockMinimoSeguridad);
+        return await _context.RecursosAlmacen
+            .AnyAsync(r => r.DistritoId == distritoId && r.StockDisponible <= r.StockMinimo);
     }
 }

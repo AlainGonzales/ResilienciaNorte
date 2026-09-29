@@ -12,16 +12,18 @@
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body bg-light py-3">
-        <form method="get" class="row g-2 align-items-center">
+        <form method="get" class="row g-2 align-items-end">
             <div class="col-md-6">
                 <label class="form-label small fw-bold text-muted">Filtrar por Almacén Distrital:</label>
                 <select name="distritoId" asp-items="ViewBag.Distritos" class="form-select">
                     <option value="">-- Todos los Almacenes --</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex align-items-end">
+            <div class="col-md-3 d-flex">
                 <button type="submit" class="btn btn-primary w-100 me-2"><i class="bi bi-filter"></i> Filtrar</button>
-                <a asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i></a>
+                <a asp-action="Index" class="btn btn-outline-secondary d-flex align-items-center justify-content-center px-3" title="Limpiar">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
             </div>
         </form>
     </div>
@@ -34,6 +36,7 @@
                 <tr>
                     <th>Código BAH</th>
                     <th>Bien Humanitario</th>
+                    <th>Categoría</th>
                     <th>Almacén / Distrito</th>
                     <th>Unidad</th>
                     <th>Stock Disponible</th>
@@ -42,18 +45,25 @@
                 </tr>
             </thead>
             <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No se registran bienes en el almacén seleccionado.</td>
+                    </tr>
+                }
                 @foreach (var item in Model)
                 {
-                    bool stockCritico = item.StockDisponible <= item.StockMinimoSeguridad;
+                    bool stockCritico = item.EsStockCritico();
                     <tr>
                         <td class="fw-bold text-muted">@item.CodigoBAH</td>
                         <td class="fw-bold text-dark">@item.Nombre</td>
+                        <td><span class="badge bg-light text-dark border">@item.Categoria</span></td>
                         <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span></td>
                         <td>@item.UnidadMedida</td>
                         <td class="fw-bold fs-6 @(stockCritico ? "text-danger" : "text-success")">
                             @item.StockDisponible.ToString("N0")
                         </td>
-                        <td class="text-muted">@item.StockMinimoSeguridad.ToString("N0")</td>
+                        <td class="text-muted">@item.StockMinimo.ToString("N0")</td>
                         <td>
                             @if (stockCritico)
                             {

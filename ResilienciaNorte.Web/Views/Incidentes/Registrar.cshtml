@@ -7,36 +7,68 @@
     <div class="col-lg-8">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-danger text-white py-3">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Reporte Ciudadano / Brigada de Emergencia</h4>
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Reporte Ciudadano / Brigada de Emergencia
+                </h4>
             </div>
             <div class="card-body p-4">
                 <form asp-action="Registrar" method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label asp-for="Titulo" class="form-label fw-bold">Título o Resumen de la Alerta</label>
-                            <input asp-for="Titulo" class="form-control" placeholder="Ej: Inundación en sector El Silencio" />
-                            <span asp-validation-for="Titulo" class="text-danger small"></span>
+                    <!-- Datos del Informante / Ciudadano -->
+                    <h6 class="fw-bold text-secondary mb-3 border-bottom pb-2">
+                        <i class="bi bi-person-badge me-1"></i> Datos del Informante
+                    </h6>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label asp-for="DniCiudadano" class="form-label fw-bold">DNI (8 dígitos) *</label>
+                            <input asp-for="DniCiudadano" class="form-control" maxlength="8" placeholder="Ej: 71234567" />
+                            <span asp-validation-for="DniCiudadano" class="text-danger small"></span>
                         </div>
 
-                        <div class="col-md-4">
-                            <label asp-for="DistritoId" class="form-label fw-bold">Distrito Afectado</label>
+                        <div class="col-md-5">
+                            <label asp-for="NombreCiudadano" class="form-label fw-bold">Nombre Completo *</label>
+                            <input asp-for="NombreCiudadano" class="form-control" placeholder="Ej: Juan Carlos Pérez" />
+                            <span asp-validation-for="NombreCiudadano" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label asp-for="Telefono" class="form-label fw-bold">Teléfono Celular *</label>
+                            <input asp-for="Telefono" class="form-control" maxlength="15" placeholder="Ej: 944112233" />
+                            <span asp-validation-for="Telefono" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <!-- Datos de la Emergencia e Impacto -->
+                    <h6 class="fw-bold text-secondary mb-3 border-bottom pb-2">
+                        <i class="bi bi-geo-alt me-1"></i> Ubicación y Magnitud del Incidente
+                    </h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="DistritoId" class="form-label fw-bold">Distrito Afectado *</label>
                             <select asp-for="DistritoId" asp-items="ViewBag.Distritos" class="form-select">
-                                <option value="">-- Seleccionar --</option>
+                                <option value="">-- Seleccionar Distrito --</option>
                             </select>
                             <span asp-validation-for="DistritoId" class="text-danger small"></span>
                         </div>
 
                         <div class="col-md-6">
-                            <label asp-for="TipoDesastre" class="form-label fw-bold">Tipo de Evento</label>
-                            <select asp-for="TipoDesastre" class="form-select">
+                            <label asp-for="SectorCritico" class="form-label fw-bold">Sector o Quebrada Crítica *</label>
+                            <input asp-for="SectorCritico" class="form-control" placeholder="Ej: Sector Río Seco / San Ildefonso" />
+                            <span asp-validation-for="SectorCritico" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="TipoEvento" class="form-label fw-bold">Tipo de Evento *</label>
+                            <select asp-for="TipoEvento" class="form-select">
                                 <option value="Inundación Pluvial">Inundación Pluvial (Lluvias)</option>
                                 <option value="Desborde de Quebrada">Desborde de Quebrada</option>
                                 <option value="Colapso de Drenaje / Desagüe">Colapso de Drenaje / Desagüe</option>
                                 <option value="Derrumbe o Daño Estructural">Derrumbe o Daño Estructural</option>
                             </select>
-                            <span asp-validation-for="TipoDesastre" class="text-danger small"></span>
+                            <span asp-validation-for="TipoEvento" class="text-danger small"></span>
                         </div>
 
                         <div class="col-md-6">
@@ -47,13 +79,13 @@
 
                         <div class="col-12">
                             <label asp-for="DireccionReferencia" class="form-label fw-bold">Dirección / Referencia Exacta</label>
-                            <input asp-for="DireccionReferencia" class="form-control" placeholder="Ej: Calle Principal Mz C Lt 12, cerca a la losa deportiva" />
+                            <input asp-for="DireccionReferencia" class="form-control" placeholder="Ej: Av. Sánchez Carrión cuadra 12, frente al colegio" />
                             <span asp-validation-for="DireccionReferencia" class="text-danger small"></span>
                         </div>
 
                         <div class="col-12">
-                            <label asp-for="Descripcion" class="form-label fw-bold">Descripción Detallada de la Situación</label>
-                            <textarea asp-for="Descripcion" rows="3" class="form-control" placeholder="Indique altura del agua, bloqueo de accesos o si se requiere rescate"></textarea>
+                            <label asp-for="Descripcion" class="form-label fw-bold">Descripción Detallada de la Situación *</label>
+                            <textarea asp-for="Descripcion" rows="3" class="form-control" placeholder="Indique altura aproximada del agua, bloqueo de vías o si se requiere motobomba o rescate"></textarea>
                             <span asp-validation-for="Descripcion" class="text-danger small"></span>
                         </div>
                     </div>

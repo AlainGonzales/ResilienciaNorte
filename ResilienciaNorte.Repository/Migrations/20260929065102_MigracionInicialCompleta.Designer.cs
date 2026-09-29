@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ResilienciaNorte.Repository;
 
@@ -11,9 +12,11 @@ using ResilienciaNorte.Repository;
 namespace ResilienciaNorte.Repository.Migrations
 {
     [DbContext(typeof(ResilienciaDbContext))]
-    partial class ResilienciaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929065102_MigracionInicialCompleta")]
+    partial class MigracionInicialCompleta
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

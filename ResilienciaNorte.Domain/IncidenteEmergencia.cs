@@ -1,47 +1,61 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ResilienciaNorte.Domain;
-
-[Table("IncidentesEmergencia")]
-public class IncidenteEmergencia
+namespace ResilienciaNorte.Domain
 {
-    [Key]
-    public int Id { get; set; }
+    [Table("IncidentesEmergencia")]
+    public class IncidenteEmergencia
+    {
+        [Key]
+        public int IncidenteId { get; set; }
 
-    [Required(ErrorMessage = "El título o resumen del incidente es obligatorio.")]
-    [StringLength(150)]
-    public string Titulo { get; set; } = string.Empty;
+        [Required]
+        [StringLength(30)]
+        public string CodigoIncidente { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "La descripción de los hechos es obligatoria.")]
-    [StringLength(500)]
-    public string Descripcion { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El DNI es obligatorio.")]
+        [StringLength(8, MinimumLength = 8, ErrorMessage = "El DNI debe tener 8 dígitos.")]
+        public string DniCiudadano { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El tipo de incidente es obligatorio.")]
-    [StringLength(50)]
-    public string TipoDesastre { get; set; } = "Inundación Pluvial"; // Inundación Pluvial, Desborde de Quebrada, Colapso de Drenaje
+        [Required(ErrorMessage = "El nombre del ciudadano es obligatorio.")]
+        [StringLength(120)]
+        public string NombreCiudadano { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El nivel de severidad es obligatorio.")]
-    [StringLength(20)]
-    public string NivelSeveridad { get; set; } = "Moderado"; // Moderado, Alto, Crítico
+        [StringLength(15)]
+        public string? Telefono { get; set; }
 
-    [Required(ErrorMessage = "La ubicación o referencia exacta es obligatoria.")]
-    [StringLength(200)]
-    public string DireccionReferencia { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Debe especificar el sector o quebrada.")]
+        [StringLength(100)]
+        public string SectorCritico { get; set; } = string.Empty;
 
-    [Display(Name = "Familias Afectadas")]
-    [Range(0, 10000, ErrorMessage = "El número de familias debe ser positivo.")]
-    public int FamiliasAfectadas { get; set; }
+        [Required]
+        [StringLength(50)]
+        public string TipoEvento { get; set; } = "Inundación Pluvial"; // Desborde Quebrada, Lluvia Torrencial
 
-    public DateTime FechaReporte { get; set; } = DateTime.Now;
+        [Range(0, 50000, ErrorMessage = "El número de familias debe ser positivo.")]
+        public int FamiliasAfectadas { get; set; } = 0;
 
-    [StringLength(30)]
-    public string Estado { get; set; } = "Pendiente"; // Pendiente, En Evaluación, Atendido
+        [Required(ErrorMessage = "La descripción de los daños es obligatoria.")]
+        [StringLength(500)]
+        public string Descripcion { get; set; } = string.Empty;
 
-    // Clave foránea hacia Distrito
-    [Required(ErrorMessage = "Debe seleccionar un distrito.")]
-    public int DistritoId { get; set; }
+        [StringLength(200)]
+        public string? DireccionReferencia { get; set; }
 
-    [ForeignKey(nameof(DistritoId))]
-    public Distrito? Distrito { get; set; }
+        [StringLength(20)]
+        public string Severidad { get; set; } = "Moderado"; // Crítico, Grave, Moderado
+
+        [StringLength(20)]
+        public string Estado { get; set; } = "Reportado"; // Reportado, Constatado, Desestimado, ConAsignacion, Atendido
+
+        public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
+
+        // Clave foránea hacia Distrito
+        [Required(ErrorMessage = "Debe seleccionar un distrito.")]
+        public int DistritoId { get; set; }
+
+        [ForeignKey(nameof(DistritoId))]
+        public Distrito? Distrito { get; set; }
+    }
 }

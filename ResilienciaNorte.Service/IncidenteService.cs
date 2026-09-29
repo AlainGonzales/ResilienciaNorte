@@ -15,7 +15,7 @@ public class IncidenteService : IIncidenteService
 
     public async Task<IEnumerable<IncidenteEmergencia>> ObtenerTodosAsync(int? distritoId = null, string? estado = null)
     {
-        var query = _context.Incidentes
+        var query = _context.IncidentesEmergencia
             .Include(i => i.Distrito)
             .AsNoTracking()
             .AsQueryable();
@@ -30,43 +30,49 @@ public class IncidenteService : IIncidenteService
             query = query.Where(i => i.Estado == estado);
         }
 
-        return await query.OrderByDescending(i => i.FechaReporte).ToListAsync();
+        return await query.OrderByDescending(i => i.FechaRegistro).ToListAsync();
     }
 
     public async Task<IncidenteEmergencia?> ObtenerPorIdAsync(int id)
     {
-        return await _context.Incidentes
+        return await _context.IncidentesEmergencia
             .Include(i => i.Distrito)
-            .FirstOrDefaultAsync(i => i.Id == id);
+            .FirstOrDefaultAsync(i => i.IncidenteId == id);
     }
 
     public async Task<IncidenteEmergencia> RegistrarIncidenteAsync(IncidenteEmergencia incidente)
     {
-        // Regla de Negocio: Cálculo automático de Severidad según impacto inicial
-        if (incidente.FamiliasAfectadas >= 15 || incidente.TipoDesastre.Contains("Desborde"))
+        // Generar código correlativo si no viene asignado
+        if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
         {
-            incidente.NivelSeveridad = "Crítico";
+            incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+        }
+
+        // Regla de Negocio: Cálculo automático de Severidad según impacto inicial
+        if (incidente.FamiliasAfectadas >= 15 || (!string.IsNullOrEmpty(incidente.TipoEvento) && incidente.TipoEvento.Contains("Desborde")))
+        {
+            incidente.Severidad = "Crítico";
         }
         else if (incidente.FamiliasAfectadas >= 6)
         {
-            incidente.NivelSeveridad = "Alto";
+            incidente.Severidad = "Grave";
         }
         else
         {
-            incidente.NivelSeveridad = "Moderado";
+            incidente.Severidad = "Moderado";
         }
 
-        incidente.FechaReporte = DateTime.Now;
-        incidente.Estado = "Pendiente";
+        incidente.FechaRegistro = DateTime.UtcNow;
+        incidente.Estado = "Reportado";
 
-        _context.Incidentes.Add(incidente);
+        _context.IncidentesEmergencia.Add(incidente);
         await _context.SaveChangesAsync();
         return incidente;
     }
 
     public async Task<bool> CambiarEstadoAsync(int id, string nuevoEstado)
     {
-        var incidente = await _context.Incidentes.FindAsync(id);
+        var incidente = await _context.IncidentesEmergencia.FindAsync(id);
         if (incidente == null) return false;
 
         incidente.Estado = nuevoEstado;

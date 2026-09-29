@@ -1,27 +1,30 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ResilienciaNorte.Domain;
-
-[Table("Distritos")]
-public class Distrito
+namespace ResilienciaNorte.Domain
 {
-    [Key]
-    public int Id { get; set; }
+    [Table("Distritos")]
+    public class Distrito
+    {
+        [Key]
+        public int DistritoId { get; set; }
 
-    [Required(ErrorMessage = "El nombre del distrito es obligatorio.")]
-    [StringLength(100)]
-    public string Nombre { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El nombre del distrito es obligatorio.")]
+        [StringLength(60)]
+        public string Nombre { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(150)]
-    public string ZonaVulnerablePrincipal { get; set; } = string.Empty;
+        [Required]
+        [StringLength(20)]
+        public string NivelRiesgo { get; set; } = "Medio"; // Alto, Medio, Bajo
 
-    public int PoblacionEstimada { get; set; }
+        [StringLength(120)]
+        public string? UbicacionCOEL { get; set; }
 
-    public bool Activo { get; set; } = true;
+        public bool Activo { get; set; } = true;
 
-    // Relaciones
-    public ICollection<IncidenteEmergencia> Incidentes { get; set; } = new List<IncidenteEmergencia>();
-    public ICollection<RecursoAlmacen> Recursos { get; set; } = new List<RecursoAlmacen>();
+        // Relaciones de navegación
+        public ICollection<IncidenteEmergencia> Incidentes { get; set; } = new List<IncidenteEmergencia>();
+        public ICollection<RecursoAlmacen> Recursos { get; set; } = new List<RecursoAlmacen>();
+    }
 }
