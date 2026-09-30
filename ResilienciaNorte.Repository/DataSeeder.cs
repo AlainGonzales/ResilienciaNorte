@@ -8,16 +8,19 @@ namespace ResilienciaNorte.Repository
     {
         public static void SeedData(this ModelBuilder modelBuilder)
         {
-            // ── 1. Catálogo Territorial - Distritos de Trujillo ──────────────
+            // ── 1. Catálogo Territorial - 11 Distritos Oficiales de la Provincia de Trujillo ──
             modelBuilder.Entity<Distrito>().HasData(
                 new Distrito { DistritoId = 1, Nombre = "El Porvenir", NivelRiesgo = "Alto", UbicacionCOEL = "Av. Sánchez Carrión 1200", Activo = true },
                 new Distrito { DistritoId = 2, Nombre = "Florencia de Mora", NivelRiesgo = "Alto", UbicacionCOEL = "Calle 20 de Setiembre", Activo = true },
-                new Distrito { DistritoId = 3, Nombre = "La Esperanza", NivelRiesgo = "Medio", UbicacionCOEL = "Plaza de Armas La Esperanza", Activo = true },
-                new Distrito { DistritoId = 4, Nombre = "Huanchaco", NivelRiesgo = "Medio", UbicacionCOEL = "Av. Víctor Larco Herrera", Activo = true },
-                new Distrito { DistritoId = 5, Nombre = "Víctor Larco Herrera", NivelRiesgo = "Alto", UbicacionCOEL = "Buenos Aires", Activo = true },
-                new Distrito { DistritoId = 6, Nombre = "Trujillo Centro", NivelRiesgo = "Bajo", UbicacionCOEL = "COEP - Palacio Municipal", Activo = true },
-                new Distrito { DistritoId = 7, Nombre = "Laredo", NivelRiesgo = "Alto", UbicacionCOEL = "Riberas de la cuenca del Río Moche", Activo = true },
-                new Distrito { DistritoId = 8, Nombre = "Moche", NivelRiesgo = "Medio", UbicacionCOEL = "Campaña de Moche", Activo = true }
+                new Distrito { DistritoId = 3, Nombre = "Huanchaco", NivelRiesgo = "Medio", UbicacionCOEL = "Av. Víctor Larco Herrera", Activo = true },
+                new Distrito { DistritoId = 4, Nombre = "La Esperanza", NivelRiesgo = "Medio", UbicacionCOEL = "Plaza de Armas La Esperanza", Activo = true },
+                new Distrito { DistritoId = 5, Nombre = "Laredo", NivelRiesgo = "Alto", UbicacionCOEL = "Riberas cuenca Río Moche", Activo = true },
+                new Distrito { DistritoId = 6, Nombre = "Moche", NivelRiesgo = "Medio", UbicacionCOEL = "Campiña de Moche", Activo = true },
+                new Distrito { DistritoId = 7, Nombre = "Poroto", NivelRiesgo = "Alto", UbicacionCOEL = "Sector Quebradas Altas", Activo = true },
+                new Distrito { DistritoId = 8, Nombre = "Salaverry", NivelRiesgo = "Bajo", UbicacionCOEL = "Zona Portuaria", Activo = true },
+                new Distrito { DistritoId = 9, Nombre = "Simbal", NivelRiesgo = "Alto", UbicacionCOEL = "Cuenca Alta Río Moche", Activo = true },
+                new Distrito { DistritoId = 10, Nombre = "Trujillo", NivelRiesgo = "Bajo", UbicacionCOEL = "COEP - Palacio Municipal", Activo = true },
+                new Distrito { DistritoId = 11, Nombre = "Víctor Larco Herrera", NivelRiesgo = "Alto", UbicacionCOEL = "Buenos Aires Sur", Activo = true }
             );
 
             // ── 2. Catálogo de Recursos de Contingencia (Almacén Inicial BAH) ──

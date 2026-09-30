@@ -267,10 +267,24 @@ namespace ResilienciaNorte.Repository.Migrations
                 {
                     { 1, true, "Alto", "El Porvenir", "Av. Sánchez Carrión 1200" },
                     { 2, true, "Alto", "Florencia de Mora", "Calle 20 de Setiembre" },
-                    { 3, true, "Medio", "La Esperanza", "Plaza de Armas La Esperanza" },
-                    { 4, true, "Medio", "Huanchaco", "Av. Víctor Larco Herrera" },
-                    { 5, true, "Alto", "Víctor Larco Herrera", "Buenos Aires" },
-                    { 6, true, "Bajo", "Trujillo Centro", "COEP - Palacio Municipal" }
+                    { 3, true, "Medio", "Huanchaco", "Av. Víctor Larco Herrera" },
+                    { 4, true, "Medio", "La Esperanza", "Plaza de Armas La Esperanza" },
+                    { 5, true, "Alto", "Laredo", "Riberas cuenca Río Moche" },
+                    { 6, true, "Medio", "Moche", "Campiña de Moche" },
+                    { 7, true, "Alto", "Poroto", "Sector Quebradas Altas" },
+                    { 8, true, "Bajo", "Salaverry", "Zona Portuaria" },
+                    { 9, true, "Alto", "Simbal", "Cuenca Alta Río Moche" },
+                    { 10, true, "Bajo", "Trujillo", "COEP - Palacio Municipal" },
+                    { 11, true, "Alto", "Víctor Larco Herrera", "Buenos Aires Sur" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "IncidentesEmergencia",
+                columns: new[] { "IncidenteId", "CodigoIncidente", "Descripcion", "DireccionReferencia", "DistritoId", "DistritoId1", "DniCiudadano", "Estado", "FamiliasAfectadas", "FechaRegistro", "NombreCiudadano", "SectorCritico", "Severidad", "Telefono", "TipoEvento" },
+                values: new object[,]
+                {
+                    { 1, "ALT-2026-0001", "Drenaje pluvial colapsado por barro acumulado tras lluvias en la parte alta. Afectación a viviendas contiguas.", "Av. Sánchez Carrión cuadra 12, El Porvenir", 1, null, "71234567", "Constatado", 18, new DateTime(2026, 9, 18, 14, 30, 0, 0, DateTimeKind.Utc), "Juan Carlos Pérez", "Sector Río Seco - Quebrada San Ildefonso", "Crítico", "944112233", "Desborde Quebrada" },
+                    { 2, "ALT-2026-0002", "Escorrentía superficial ingresando a predios en el margen de la carretera.", "Entrada principal a El Trópico, Huanchaco", 4, null, "40987654", "Reportado", 5, new DateTime(2026, 9, 18, 18, 15, 0, 0, DateTimeKind.Utc), "María Elena Rojas", "Entrada principal a El Trópico", "Moderado", "988776655", "Inundación Pluvial" }
                 });
 
             migrationBuilder.InsertData(
@@ -282,7 +296,8 @@ namespace ResilienciaNorte.Repository.Migrations
                     { 2, "Techo", "BAH-002", 1, null, "Bobinas de plástico impermeable 6x50m", 300, 20, "Rollos" },
                     { 3, "Equipamiento", "BAH-003", 1, null, "Motobomba de achique autocebante 4\"", 15, 3, "Equipos" },
                     { 4, "Techo", "BAH-004", 1, null, "Calaminas galvanizadas 1.83x0.83m", 5000, 200, "Planchas" },
-                    { 5, "Alimentos", "BAH-005", 1, null, "Kit de víveres no perecibles (ración 3 días)", 2000, 100, "Kits" }
+                    { 5, "Alimentos", "BAH-005", 1, null, "Kit de víveres no perecibles (ración 3 días)", 2000, 100, "Kits" },
+                    { 6, "Abrigo", "BAH-006", 5, null, "Camas plegables de lona para albergues", 120, 25, "Unidades" }
                 });
 
             migrationBuilder.CreateIndex(

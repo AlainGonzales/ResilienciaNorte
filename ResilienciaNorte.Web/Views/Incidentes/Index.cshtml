@@ -1,162 +1,477 @@
 ﻿@model IEnumerable<ResilienciaNorte.Domain.IncidenteEmergencia>
 @{
     ViewData["Title"] = "Monitoreo de Incidentes";
+
+    // Contadores por distrito para el semáforo inicial (excluye reportes desestimados)
+    var conteoPorDistrito = Model
+        .Where(i => i.Estado != "Desestimado")
+        .GroupBy(i => i.DistritoId)
+        .ToDictionary(g => g.Key, g => g.Count());
+
+    string ObtenerColorSemaforo(int distritoId)
+    {
+        int count = conteoPorDistrito.ContainsKey(distritoId) ? conteoPorDistrito[distritoId] : 0;
+        if (count >= 4) return "alerta-rojo";     // Situación crítica o alto impacto
+        if (count >= 2) return "alerta-naranja";  // Alerta moderada / vigilancia
+        return "alerta-amarillo";                 // Situación leve / preventiva
+    }
+
+    string estadoActual = ViewBag.EstadoSeleccionado as string ?? "";
+    string distritoActual = ViewBag.DistritoSeleccionado?.ToString() ?? "";
 }
+
+<style>
+    /* Panel lateral del Mapa Cartográfico */
+    .mapa-card-container {
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 1.15rem;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+    }
+
+    .mapa-lienzo-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .mapa-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    /* Distritos interactivos */
+    .distrito-overlay {
+        cursor: pointer;
+        opacity: 0.45;
+        stroke: #1e293b;
+        stroke-width: 2;
+        transition: opacity 0.2s ease-in-out, stroke 0.2s ease-in-out, stroke-width 0.2s ease-in-out;
+        pointer-events: all;
+    }
+
+        .distrito-overlay:hover {
+            opacity: 0.80 !important;
+            stroke: #0284c7 !important;
+            stroke-width: 4 !important;
+        }
+
+        .distrito-overlay.distrito-activo {
+            opacity: 0.90 !important;
+            stroke: #0284c7 !important;
+            stroke-width: 5 !important;
+            filter: drop-shadow(0 0 6px #0284c7);
+        }
+
+    /* Semáforo Territorial Dinámico */
+    .alerta-amarillo {
+        fill: #eab308;
+    }
+
+    .alerta-naranja {
+        fill: #f97316;
+    }
+
+    .alerta-rojo {
+        fill: #ef4444;
+    }
+
+    /* Scroll interno para la grilla de alertas */
+    .tabla-scroll-wrap {
+        max-height: 540px;
+        overflow-y: auto;
+    }
+
+    /* Animación de entrada SignalR */
+    @@keyframes filaNueva {
+        from {
+            background-color: #fef08a;
+            transform: translateY(-4px);
+        }
+
+        to {
+            background-color: transparent;
+            transform: translateY(0);
+        }
+    }
+
+    .fila-reciente {
+        animation: filaNueva 3s ease-out;
+    }
+</style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-danger"></i> Monitoreo de Incidentes</h2>
-        <p class="text-muted small">Alertas y emergencias pluviales reportadas en los distritos de Trujillo</p>
+        <p class="text-muted small mb-0">Alertas y emergencias pluviales reportadas en la Provincia de Trujillo</p>
     </div>
     <a asp-action="Registrar" class="btn btn-danger shadow-sm">
         <i class="bi bi-plus-lg me-1"></i> Reportar Incidente
     </a>
 </div>
 
-<!-- Filtros de búsqueda -->
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body bg-light py-3">
-        <form method="get" class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label small fw-bold text-muted">Filtrar por Distrito:</label>
-                <select name="distritoId" asp-items="ViewBag.Distritos" class="form-select">
-                    <option value="">-- Todos los distritos --</option>
-                </select>
+<!-- DASHBOARD INTEGRAL EN 2 COLUMNAS (MAPA Y TABLA EN LA MISMA PANTALLA) -->
+<div class="row g-3">
+    <!-- COLUMNA IZQUIERDA: CROQUIS CARTOGRÁFICO Y SEMÁFORO -->
+    <div class="col-xl-5 col-lg-5">
+        <div class="mapa-card-container h-100">
+            <div class="d-flex justify-content-between text-white mb-2 px-1 small">
+                <span><span class="badge bg-warning text-dark">&nbsp;</span> Alerta Amarilla</span>
+                <span><span class="badge" style="background:#f97316;">&nbsp;</span> Alerta Naranja</span>
+                <span><span class="badge bg-danger">&nbsp;</span> Alerta Roja</span>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small fw-bold text-muted">Estado:</label>
-                <select name="estado" class="form-select">
-                    <option value="">-- Todos los estados --</option>
-                    <option value="Reportado" selected="@(ViewBag.EstadoSeleccionado == "Reportado")">Reportado</option>
-                    <option value="Constatado" selected="@(ViewBag.EstadoSeleccionado == "Constatado")">Constatado</option>
-                    <option value="Desestimado" selected="@(ViewBag.EstadoSeleccionado == "Desestimado")">Desestimado</option>
-                    <option value="ConAsignacion" selected="@(ViewBag.EstadoSeleccionado == "ConAsignacion")">Con Asignación</option>
-                    <option value="EnDespacho" selected="@(ViewBag.EstadoSeleccionado == "EnDespacho")">En Despacho</option>
-                    <option value="Atendido" selected="@(ViewBag.EstadoSeleccionado == "Atendido")">Atendido</option>
-                </select>
+
+            <div class="mapa-lienzo-wrap">
+                <svg viewBox="0 0 1261 1247" class="mapa-svg" xmlns="http://www.w3.org/2000/svg">
+                    <!-- IMAGEN REAL DE FONDO -->
+                    <image href="/images/mapa_trujillo_distritos_notittle_bn.png"
+                           x="0" y="0" width="1261" height="1247"
+                           preserveAspectRatio="none" />
+
+                    <!-- 9 - SIMBAL -->
+                    <path id="dist-9"
+                          d="M 926,30 859,25 845,15 825,35 803,35 790,52 774,61 767,77 746,94 720,94 711,104 699,136 696,162 668,208 622,212 612,220 601,220 594,214 581,219 588,234 599,242 599,252 606,258 607,266 616,274 613,284 617,296 608,308 614,320 601,335 612,343 613,351 628,355 633,367 629,372 641,388 641,399 656,414 658,423 674,433 675,439 701,446 732,437 747,445 771,440 780,444 784,454 793,454 809,464 832,463 844,469 867,471 882,467 897,448 913,444 935,425 941,413 940,400 958,380 975,382 981,377 1033,374 1046,382 1057,382 1077,363 1079,346 1088,342 1100,321 1042,287 1021,288 1016,284 1016,259 1007,245 1020,227 1025,203 992,205 979,197 945,193 930,201 918,190 919,173 910,161 911,150 929,135 928,120 937,96 915,76 910,57 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(9)"
+                          data-distrito="9"
+                          data-nombre="Simbal">
+                        <title>Simbal</title>
+                    </path>
+
+                    <!-- 3 - HUANCHACO -->
+                    <path id="dist-3"
+                          d="M 579,223 557,236 546,236 528,230 517,215 482,217 483,228 474,258 464,267 455,313 440,329 440,342 385,372 378,380 375,405 359,414 298,410 291,406 243,406 236,402 229,387 213,370 211,334 201,316 191,308 175,323 156,314 145,315 23,434 198,589 199,596 189,614 192,623 302,724 321,692 316,666 329,653 328,645 336,637 337,628 352,618 345,612 312,611 300,597 323,535 340,517 351,517 373,530 374,541 390,547 431,504 478,482 493,465 505,461 542,462 552,447 553,432 569,424 572,415 584,405 584,399 601,388 607,367 625,365 624,358 612,356 607,344 597,337 608,320 603,308 611,297 607,284 610,275 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(3)"
+                          data-distrito="3"
+                          data-nombre="Huanchaco">
+                        <title>Huanchaco</title>
+                    </path>
+
+                    <!-- 7 - POROTO -->
+                    <path id="dist-7"
+                          d="M 1103,326 1093,344 1082,351 1081,366 1060,386 1046,387 1032,379 988,382 976,387 960,385 945,401 946,414 941,425 919,446 901,452 883,472 857,477 833,469 832,479 839,485 837,501 870,542 869,551 854,560 853,572 871,593 878,623 905,639 902,658 909,669 927,657 941,665 960,657 975,668 982,664 992,667 1007,656 1008,645 1016,636 1046,630 1040,584 1053,561 1053,537 1068,519 1081,517 1076,492 1061,482 1057,471 1065,460 1077,459 1089,448 1104,447 1106,436 1126,424 1126,411 1100,375 1112,359 1112,330 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(7)"
+                          data-distrito="7"
+                          data-nombre="Poroto">
+                        <title>Poroto</title>
+                    </path>
+
+                    <!-- 5 - LAREDO -->
+                    <path id="dist-5"
+                          d="M 468,656 476,663 473,675 483,679 499,698 497,728 514,741 517,755 542,787 586,788 625,801 661,803 667,809 668,824 679,831 722,818 745,819 759,806 781,803 802,820 805,837 800,847 813,862 864,871 887,864 903,866 914,873 918,850 934,822 958,804 986,807 1028,800 1036,793 1068,786 1095,764 1123,758 1136,760 1162,747 1189,759 1222,744 1231,725 1225,718 1190,719 1184,711 1157,710 1136,701 1132,696 1134,652 1126,636 1085,643 1070,636 1049,634 1018,641 1006,665 995,671 973,672 958,661 938,669 928,661 915,672 907,673 896,659 900,640 875,627 866,594 848,574 851,556 865,543 831,501 834,486 827,480 828,470 810,470 791,458 780,458 775,446 745,449 733,442 707,451 682,448 653,426 651,415 636,400 636,388 629,383 625,369 612,369 604,392 588,401 588,407 576,417 572,428 558,433 557,448 547,463 558,476 559,495 553,502 542,504 538,523 530,529 523,528 514,539 511,571 505,577 504,589 495,596 490,619 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(5)"
+                          data-distrito="5"
+                          data-nombre="Laredo">
+                        <title>Laredo</title>
+                    </path>
+
+                    <!-- 1 - EL PORVENIR -->
+                    <path id="dist-1"
+                          d="M 551,476 537,465 507,466 491,472 478,488 433,508 394,550 385,552 384,586 390,591 409,582 430,587 443,612 480,626 490,596 499,588 500,575 506,569 509,539 520,524 533,522 537,502 554,494 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(1)"
+                          data-distrito="1"
+                          data-nombre="El Porvenir">
+                        <title>El Porvenir</title>
+                    </path>
+
+                    <!-- 4 - LA ESPERANZA -->
+                    <path id="dist-4"
+                          d="M 350,522 L 340,522 L 329,537 L 306,597 L 315,607 L 344,608 L 357,615 L 375,620 L 389,627 L 387,593 L 379,586 L 380,552 L 374,541 L 370,534 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(4)"
+                          data-distrito="4"
+                          data-nombre="La Esperanza">
+                        <title>La Esperanza</title>
+                    </path>
+
+                    <!-- 2 - FLORENCIA DE MORA -->
+                    <path id="dist-2"
+                          d="M 430,593 412,586 393,596 393,623 399,628 414,626 438,613 431,605 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(2)"
+                          data-distrito="2"
+                          data-nombre="Florencia de Mora">
+                        <title>Florencia de Mora</title>
+                    </path>
+
+                    <!-- 10 - TRUJILLO -->
+                    <path id="dist-10"
+                          d="M 477,632 442,616 416,631 399,634 391,627 375,627 357,620 341,632 333,647 335,654 324,660 321,674 328,689 351,696 366,708 379,707 389,715 401,735 398,756 410,754 424,740 443,740 478,707 496,704 482,684 465,676 471,665 463,655 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(10)"
+                          data-distrito="10"
+                          data-nombre="Trujillo">
+                        <title>Trujillo</title>
+                    </path>
+
+                    <!-- 11 - VÍCTOR LARCO HERRERA -->
+                    <path id="dist-11"
+                          d="M 325,694 307,725 353,771 373,785 393,758 395,733 379,713 359,711 351,702 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(11)"
+                          data-distrito="11"
+                          data-nombre="Víctor Larco Herrera">
+                        <title>Víctor Larco Herrera</title>
+                    </path>
+
+                    <!-- 6 - MOCHE -->
+                    <path id="dist-6"
+                          d="M 494,710 478,715 446,744 426,745 412,758 395,762 374,790 458,869 466,820 473,811 500,794 524,795 535,788 512,756 511,745 493,730 490,720 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(6)"
+                          data-distrito="6"
+                          data-nombre="Moche">
+                        <title>Moche</title>
+                    </path>
+
+                    <!-- 8 - SALAVERRY -->
+                    <path id="dist-8"
+                          d="M 490,804 471,821 462,871 482,891 497,915 497,941 548,997 544,1025 554,1045 550,1066 564,1077 573,1092 572,1102 671,1229 678,1222 693,1185 715,1160 741,1155 761,1137 776,1138 785,1123 802,1108 818,1106 823,1099 843,1093 850,1086 847,1074 859,1053 853,1021 866,1010 867,1000 878,982 876,975 848,940 826,940 813,928 812,918 799,903 797,874 787,860 787,850 800,836 798,823 779,807 760,811 746,824 724,822 679,836 665,828 657,807 624,806 586,794 538,792 522,801 504,799 Z"
+                          class="distrito-overlay @ObtenerColorSemaforo(8)"
+                          data-distrito="8"
+                          data-nombre="Salaverry">
+                        <title>Salaverry</title>
+                    </path>
+                </svg>
             </div>
-            <div class="col-md-3 d-flex">
-                <button type="submit" class="btn btn-secondary w-100 me-2"><i class="bi bi-funnel"></i> Filtrar</button>
-                <a asp-action="Index" class="btn btn-outline-secondary d-flex align-items-center justify-content-center px-3" title="Limpiar"><i class="bi bi-arrow-counterclockwise"></i></a>
+            <p class="text-white-50 text-center small mt-2 mb-0">
+                <i class="bi bi-hand-index-thumb"></i> Clic en un distrito para filtrar la tabla
+            </p>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: FILTRO DE ESTADO Y TABLA DE INCIDENTES -->
+    <div class="col-xl-7 col-lg-7">
+        <!-- Filtros compactos: Se eliminó el select de distritos redundante -->
+        <div class="card shadow-sm border-0 mb-3 bg-light">
+            <div class="card-body p-2">
+                <form method="get" id="formFiltros" class="row g-2 align-items-center">
+                    <!-- Distrito preservado en campo oculto para mantener la selección del SVG -->
+                    <input type="hidden" name="distritoId" id="inputDistrito" value="@distritoActual" />
+
+                    <div class="col-sm-8 col-md-9">
+                        <select name="estado" id="selectEstado" class="form-select form-select-sm">
+                            <option value="">-- Todos los estados --</option>
+                            <!option value="Reportado" @(estadoActual == "Reportado" ? "selected" : "")>Reportado</!option>
+                            <!option value="Constatado" @(estadoActual == "Constatado" ? "selected" : "")>Constatado</!option>
+                            <!option value="Desestimado" @(estadoActual == "Desestimado" ? "selected" : "")>Desestimado</!option>
+                            <!option value="Con Asignación" @(estadoActual == "Con Asignación" || estadoActual == "ConAsignacion" ? "selected" : "")>Con Asignación</!option>
+                            <!option value="En Despacho" @(estadoActual == "En Despacho" || estadoActual == "EnDespacho" ? "selected" : "")>En Despacho</!option>
+                            <!option value="Atendido" @(estadoActual == "Atendido" ? "selected" : "")>Atendido</!option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4 col-md-3 d-flex gap-1">
+                        <button type="submit" class="btn btn-sm btn-secondary w-100"><i class="bi bi-funnel"></i> Filtrar</button>
+                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary px-2" title="Limpiar todos los filtros"><i class="bi bi-arrow-counterclockwise"></i></a>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
+
+        <!-- Tabla de alertas con scroll interno -->
+        <div class="card shadow-sm border-0">
+            <div class="table-responsive tabla-scroll-wrap">
+                <table class="table table-hover align-middle mb-0" id="tablaIncidentes">
+                    <thead class="card-header-resiliencia sticky-top">
+                        <tr>
+                            <th>Código</th>
+                            <th>Incidente / Ubicación</th>
+                            <th>Distrito</th>
+                            <th>Severidad</th>
+                            <th>Fam.</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyIncidentes">
+                        @if (!Model.Any())
+                        {
+                            <tr id="filaSinRegistros">
+                                <td colspan="8" class="text-center py-4 text-muted">No se registran emergencias con los filtros seleccionados.</td>
+                            </tr>
+                        }
+                        @foreach (var item in Model)
+                        {
+                            <tr data-distrito-id="@item.DistritoId">
+                                <td class="fw-bold small">@item.CodigoIncidente</td>
+                                <td>
+                                    <div class="fw-bold small text-dark">@item.SectorCritico</div>
+                                    <small class="text-muted"><i class="bi bi-geo-alt"></i> @(string.IsNullOrWhiteSpace(item.DireccionReferencia) ? item.TipoEvento : item.DireccionReferencia)</small>
+                                </td>
+                                <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span></td>
+                                <td>
+                                    @if (item.Severidad == "Crítico")
+                                    {
+                                        <span class="badge badge-critico px-2 py-1"><i class="bi bi-exclamation-octagon-fill"></i> Crítico</span>
+                                    }
+                                    else if (item.Severidad == "Grave" || item.Severidad == "Alto")
+                                    {
+                                        <span class="badge badge-alto px-2 py-1"><i class="bi bi-exclamation-triangle-fill"></i> Grave</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-moderado px-2 py-1">Moderado</span>
+                                    }
+                                </td>
+                                <td class="fw-bold text-danger">@item.FamiliasAfectadas</td>
+                                <td class="small">@item.FechaRegistro.ToString("dd/MM HH:mm")</td>
+                                <td>
+                                    @switch (item.Estado)
+                                    {
+                                        case "Reportado":
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Reportado</span>
+                                            break;
+                                        case "Constatado":
+                                            <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Constatado</span>
+                                            break;
+                                        case "Desestimado":
+                                            <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Desestimado</span>
+                                            break;
+                                        case "Con Asignación":
+                                        case "ConAsignacion":
+                                            <span class="badge bg-info text-dark"><i class="bi bi-box-seam"></i> Asignado</span>
+                                            break;
+                                        case "En Despacho":
+                                        case "EnDespacho":
+                                            <span class="badge bg-secondary"><i class="bi bi-truck"></i> Despacho</span>
+                                            break;
+                                        case "Atendido":
+                                            <span class="badge bg-success"><i class="bi bi-check2-all"></i> Atendido</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-light text-dark">@item.Estado</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (item.Estado == "Reportado")
+                                    {
+                                        <form asp-action="CambiarEstado" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@item.IncidenteId" />
+                                            <input type="hidden" name="nuevoEstado" value="Constatado" />
+                                            <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Constatar en terreno">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                        </form>
+                                        <form asp-action="CambiarEstado" method="post" class="d-inline">
+                                            <input type="hidden" name="id" value="@item.IncidenteId" />
+                                            <input type="hidden" name="nuevoEstado" value="Desestimado" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Desestimar reporte">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (item.Estado == "Constatado")
+                                    {
+                                        <span class="text-muted small"><i class="bi bi-arrow-right-circle"></i> Listo</span>
+                                    }
+                                    else if (item.Estado == "Atendido")
+                                    {
+                                        <i class="bi bi-check2-all text-success fs-6" title="Emergencia Cerrada"></i>
+                                    }
+                                    else if (item.Estado == "Desestimado")
+                                    {
+                                        <i class="bi bi-slash-circle text-muted fs-6" title="Reporte Descartado"></i>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-dark border">En proceso</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Tabla de Incidentes -->
-<div class="card shadow-sm border-0">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="card-header-resiliencia">
-                <tr>
-                    <th>Código</th>
-                    <th>Incidente / Ubicación</th>
-                    <th>Distrito</th>
-                    <th>Tipo</th>
-                    <th>Severidad</th>
-                    <th>Familias</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    <th class="text-center">Acción</th>
+@section Scripts {
+    <!-- Cliente oficial de SignalR desde CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+    <script>
+        // 1. Interacción del Croquis SVG con el Formulario de Filtros
+        document.querySelectorAll('.distrito-overlay').forEach(shape => {
+            shape.addEventListener('click', function() {
+                const distritoId = this.getAttribute('data-distrito');
+                const inputDistrito = document.getElementById('inputDistrito');
+
+                if (this.classList.contains('distrito-activo')) {
+                    this.classList.remove('distrito-activo');
+                    inputDistrito.value = "";
+                } else {
+                    document.querySelectorAll('.distrito-overlay').forEach(s => s.classList.remove('distrito-activo'));
+                    this.classList.add('distrito-activo');
+                    inputDistrito.value = distritoId;
+                }
+
+                document.getElementById('formFiltros').submit();
+            });
+        });
+
+        // Resaltar el distrito en el SVG si ya viene filtrado en el request
+        const distritoActualValor = document.getElementById('inputDistrito').value;
+        if (distritoActualValor) {
+            const poligono = document.getElementById(`dist-${distritoActualValor}`);
+            if (poligono) poligono.classList.add('distrito-activo');
+        }
+
+        // 2. Conexión de SignalR con el EmergenciaHub
+        const conexionHub = new signalR.HubConnectionBuilder()
+            .withUrl("/emergenciaHub")
+            .withAutomaticReconnect()
+            .build();
+
+        conexionHub.on("NuevoIncidenteReportado", function(data) {
+            const filaVacia = document.getElementById('filaSinRegistros');
+            if (filaVacia) filaVacia.remove();
+
+            let badgeSeveridad = `<span class="badge badge-moderado px-2 py-1">Moderado</span>`;
+            if (data.severidad === 'Crítico') {
+                badgeSeveridad = `<span class="badge badge-critico px-2 py-1"><i class="bi bi-exclamation-octagon-fill"></i> Crítico</span>`;
+            } else if (data.severidad === 'Grave' || data.severidad === 'Alto') {
+                badgeSeveridad = `<span class="badge badge-alto px-2 py-1"><i class="bi bi-exclamation-triangle-fill"></i> Grave</span>`;
+            }
+
+            const nuevaFila = `
+                <tr class="fila-reciente" data-distrito-id="${data.distritoId}">
+                    <td class="fw-bold small">${data.codigo}</td>
+                    <td>
+                        <div class="fw-bold small text-dark">${data.sector}</div>
+                        <small class="text-muted"><i class="bi bi-geo-alt"></i> ${data.referencia}</small>
+                    </td>
+                    <td><span class="badge bg-secondary">${data.distritoNombre}</span></td>
+                    <td>${badgeSeveridad}</td>
+                    <td class="fw-bold text-danger">${data.familias}</td>
+                    <td class="small">${data.fecha}</td>
+                    <td>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${data.estado}</span>
+                    </td>
+                    <td class="text-center">
+                        <form action="/Incidentes/CambiarEstado" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="${data.incidenteId}" />
+                            <input type="hidden" name="nuevoEstado" value="Constatado" />
+                            <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Constatar en terreno">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        </form>
+                        <form action="/Incidentes/CambiarEstado" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="${data.incidenteId}" />
+                            <input type="hidden" name="nuevoEstado" value="Desestimado" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Desestimar reporte">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </form>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                @if (!Model.Any())
-                {
-                    <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">No se registran emergencias con los filtros seleccionados.</td>
-                    </tr>
-                }
-                @foreach (var item in Model)
-                {
-                    <tr>
-                        <td class="fw-bold">@item.CodigoIncidente</td>
-                        <td>
-                            <div class="fw-bold text-dark">@item.SectorCritico</div>
-                            <small class="text-muted"><i class="bi bi-geo-alt"></i> @(string.IsNullOrWhiteSpace(item.DireccionReferencia) ? "Sin referencia adicional" : item.DireccionReferencia)</small>
-                        </td>
-                        <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span></td>
-                        <td>@item.TipoEvento</td>
-                        <td>
-                            @if (item.Severidad == "Crítico")
-                            {
-                                <span class="badge badge-critico px-2 py-1"><i class="bi bi-exclamation-octagon-fill"></i> Crítico</span>
-                            }
-                            else if (item.Severidad == "Grave" || item.Severidad == "Alto")
-                            {
-                                <span class="badge badge-alto px-2 py-1"><i class="bi bi-exclamation-triangle-fill"></i> Grave</span>
-                            }
-                            else
-                            {
-                                <span class="badge badge-moderado px-2 py-1">Moderado</span>
-                            }
-                        </td>
-                        <td class="fw-bold text-danger">@item.FamiliasAfectadas</td>
-                        <td class="small">@item.FechaRegistro.ToString("dd/MM/yyyy HH:mm")</td>
-                        <td>
-                            @switch (item.Estado)
-                            {
-                                case "Reportado":
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Reportado</span>
-                                    break;
-                                case "Constatado":
-                                    <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Constatado</span>
-                                    break;
-                                case "Desestimado":
-                                    <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Desestimado</span>
-                                    break;
-                                case "ConAsignacion":
-                                    <span class="badge bg-info text-dark"><i class="bi bi-box-seam"></i> Con Asignación</span>
-                                    break;
-                                case "EnDespacho":
-                                    <span class="badge bg-secondary"><i class="bi bi-truck"></i> En Despacho</span>
-                                    break;
-                                case "Atendido":
-                                    <span class="badge bg-success"><i class="bi bi-check2-all"></i> Atendido</span>
-                                    break;
-                                default:
-                                    <span class="badge bg-light text-dark">@item.Estado</span>
-                                    break;
-                            }
-                        </td>
-                        <td class="text-center">
-                            @if (item.Estado == "Reportado")
-                            {
-                                <form asp-action="CambiarEstado" method="post" class="d-inline">
-                                    <input type="hidden" name="id" value="@item.IncidenteId" />
-                                    <input type="hidden" name="nuevoEstado" value="Constatado" />
-                                    <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Constatar en terreno">
-                                        <i class="bi bi-check-lg"></i> Constatar
-                                    </button>
-                                </form>
-                                <form asp-action="CambiarEstado" method="post" class="d-inline">
-                                    <input type="hidden" name="id" value="@item.IncidenteId" />
-                                    <input type="hidden" name="nuevoEstado" value="Desestimado" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Desestimar reporte">
-                                        <i class="bi bi-x-lg"></i> Desestimar
-                                    </button>
-                                </form>
-                            }
-                            else if (item.Estado == "Constatado")
-                            {
-                                <span class="text-muted small"><i class="bi bi-arrow-right-circle"></i> Listo para Asignar</span>
-                            }
-                            else if (item.Estado == "Atendido")
-                            {
-                                <i class="bi bi-check2-all text-success fs-5" title="Emergencia Cerrada"></i>
-                            }
-                            else if (item.Estado == "Desestimado")
-                            {
-                                <i class="bi bi-slash-circle text-muted fs-6" title="Reporte Descartado"></i>
-                            }
-                            else
-                            {
-                                <span class="badge bg-light text-dark border">En proceso</span>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+            `;
+
+            const tbody = document.getElementById('tbodyIncidentes');
+            tbody.insertAdjacentHTML('afterbegin', nuevaFila);
+        });
+
+        conexionHub.start().catch(err => console.error("Error al iniciar conexión SignalR:", err));
+    </script>
+}

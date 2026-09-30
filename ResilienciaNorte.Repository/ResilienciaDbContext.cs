@@ -147,23 +147,8 @@ namespace ResilienciaNorte.Repository
                 entity.Property(e => e.Detalle).HasMaxLength(500).IsRequired();
             });
 
-            // ── Data Seeding Oficial (Distritos e Inventario Base) ─────────────
-            modelBuilder.Entity<Distrito>().HasData(
-                new Distrito { DistritoId = 1, Nombre = "El Porvenir", NivelRiesgo = "Alto", UbicacionCOEL = "Av. Sánchez Carrión 1200" },
-                new Distrito { DistritoId = 2, Nombre = "Florencia de Mora", NivelRiesgo = "Alto", UbicacionCOEL = "Calle 20 de Setiembre" },
-                new Distrito { DistritoId = 3, Nombre = "La Esperanza", NivelRiesgo = "Medio", UbicacionCOEL = "Plaza de Armas La Esperanza" },
-                new Distrito { DistritoId = 4, Nombre = "Huanchaco", NivelRiesgo = "Medio", UbicacionCOEL = "Av. Víctor Larco Herrera" },
-                new Distrito { DistritoId = 5, Nombre = "Víctor Larco Herrera", NivelRiesgo = "Alto", UbicacionCOEL = "Buenos Aires" },
-                new Distrito { DistritoId = 6, Nombre = "Trujillo Centro", NivelRiesgo = "Bajo", UbicacionCOEL = "COEP - Palacio Municipal" }
-            );
-
-            modelBuilder.Entity<RecursoAlmacen>().HasData(
-                new RecursoAlmacen { RecursoId = 1, CodigoBAH = "BAH-001", Nombre = "Sacos terreros de polipropileno", Categoria = "Defensa Ribereña", UnidadMedida = "Unidades", StockDisponible = 15000, StockMinimo = 500, DistritoId = 1 },
-                new RecursoAlmacen { RecursoId = 2, CodigoBAH = "BAH-002", Nombre = "Bobinas de plástico impermeable 6x50m", Categoria = "Techo", UnidadMedida = "Rollos", StockDisponible = 300, StockMinimo = 20, DistritoId = 1 },
-                new RecursoAlmacen { RecursoId = 3, CodigoBAH = "BAH-003", Nombre = "Motobomba de achique autocebante 4\"", Categoria = "Equipamiento", UnidadMedida = "Equipos", StockDisponible = 15, StockMinimo = 3, DistritoId = 1 },
-                new RecursoAlmacen { RecursoId = 4, CodigoBAH = "BAH-004", Nombre = "Calaminas galvanizadas 1.83x0.83m", Categoria = "Techo", UnidadMedida = "Planchas", StockDisponible = 5000, StockMinimo = 200, DistritoId = 1 },
-                new RecursoAlmacen { RecursoId = 5, CodigoBAH = "BAH-005", Nombre = "Kit de víveres no perecibles (ración 3 días)", Categoria = "Alimentos", UnidadMedida = "Kits", StockDisponible = 2000, StockMinimo = 100, DistritoId = 1 }
-            );
+            // ── Invocación al Sembrado Centralizado desde DataSeeder.cs ─────────
+            modelBuilder.SeedData();
         }
     }
 }

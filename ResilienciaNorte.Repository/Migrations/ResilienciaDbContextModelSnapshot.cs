@@ -149,32 +149,72 @@ namespace ResilienciaNorte.Repository.Migrations
                             DistritoId = 3,
                             Activo = true,
                             NivelRiesgo = "Medio",
-                            Nombre = "La Esperanza",
-                            UbicacionCOEL = "Plaza de Armas La Esperanza"
+                            Nombre = "Huanchaco",
+                            UbicacionCOEL = "Av. Víctor Larco Herrera"
                         },
                         new
                         {
                             DistritoId = 4,
                             Activo = true,
                             NivelRiesgo = "Medio",
-                            Nombre = "Huanchaco",
-                            UbicacionCOEL = "Av. Víctor Larco Herrera"
+                            Nombre = "La Esperanza",
+                            UbicacionCOEL = "Plaza de Armas La Esperanza"
                         },
                         new
                         {
                             DistritoId = 5,
                             Activo = true,
                             NivelRiesgo = "Alto",
-                            Nombre = "Víctor Larco Herrera",
-                            UbicacionCOEL = "Buenos Aires"
+                            Nombre = "Laredo",
+                            UbicacionCOEL = "Riberas cuenca Río Moche"
                         },
                         new
                         {
                             DistritoId = 6,
                             Activo = true,
+                            NivelRiesgo = "Medio",
+                            Nombre = "Moche",
+                            UbicacionCOEL = "Campiña de Moche"
+                        },
+                        new
+                        {
+                            DistritoId = 7,
+                            Activo = true,
+                            NivelRiesgo = "Alto",
+                            Nombre = "Poroto",
+                            UbicacionCOEL = "Sector Quebradas Altas"
+                        },
+                        new
+                        {
+                            DistritoId = 8,
+                            Activo = true,
                             NivelRiesgo = "Bajo",
-                            Nombre = "Trujillo Centro",
+                            Nombre = "Salaverry",
+                            UbicacionCOEL = "Zona Portuaria"
+                        },
+                        new
+                        {
+                            DistritoId = 9,
+                            Activo = true,
+                            NivelRiesgo = "Alto",
+                            Nombre = "Simbal",
+                            UbicacionCOEL = "Cuenca Alta Río Moche"
+                        },
+                        new
+                        {
+                            DistritoId = 10,
+                            Activo = true,
+                            NivelRiesgo = "Bajo",
+                            Nombre = "Trujillo",
                             UbicacionCOEL = "COEP - Palacio Municipal"
+                        },
+                        new
+                        {
+                            DistritoId = 11,
+                            Activo = true,
+                            NivelRiesgo = "Alto",
+                            Nombre = "Víctor Larco Herrera",
+                            UbicacionCOEL = "Buenos Aires Sur"
                         });
                 });
 
@@ -260,6 +300,42 @@ namespace ResilienciaNorte.Repository.Migrations
                     b.HasIndex("DistritoId1");
 
                     b.ToTable("IncidentesEmergencia");
+
+                    b.HasData(
+                        new
+                        {
+                            IncidenteId = 1,
+                            CodigoIncidente = "ALT-2026-0001",
+                            Descripcion = "Drenaje pluvial colapsado por barro acumulado tras lluvias en la parte alta. Afectación a viviendas contiguas.",
+                            DireccionReferencia = "Av. Sánchez Carrión cuadra 12, El Porvenir",
+                            DistritoId = 1,
+                            DniCiudadano = "71234567",
+                            Estado = "Constatado",
+                            FamiliasAfectadas = 18,
+                            FechaRegistro = new DateTime(2026, 9, 18, 14, 30, 0, 0, DateTimeKind.Utc),
+                            NombreCiudadano = "Juan Carlos Pérez",
+                            SectorCritico = "Sector Río Seco - Quebrada San Ildefonso",
+                            Severidad = "Crítico",
+                            Telefono = "944112233",
+                            TipoEvento = "Desborde Quebrada"
+                        },
+                        new
+                        {
+                            IncidenteId = 2,
+                            CodigoIncidente = "ALT-2026-0002",
+                            Descripcion = "Escorrentía superficial ingresando a predios en el margen de la carretera.",
+                            DireccionReferencia = "Entrada principal a El Trópico, Huanchaco",
+                            DistritoId = 4,
+                            DniCiudadano = "40987654",
+                            Estado = "Reportado",
+                            FamiliasAfectadas = 5,
+                            FechaRegistro = new DateTime(2026, 9, 18, 18, 15, 0, 0, DateTimeKind.Utc),
+                            NombreCiudadano = "María Elena Rojas",
+                            SectorCritico = "Entrada principal a El Trópico",
+                            Severidad = "Moderado",
+                            Telefono = "988776655",
+                            TipoEvento = "Inundación Pluvial"
+                        });
                 });
 
             modelBuilder.Entity("ResilienciaNorte.Domain.MovimientoAlmacen", b =>
@@ -473,6 +549,17 @@ namespace ResilienciaNorte.Repository.Migrations
                             StockDisponible = 2000,
                             StockMinimo = 100,
                             UnidadMedida = "Kits"
+                        },
+                        new
+                        {
+                            RecursoId = 6,
+                            Categoria = "Abrigo",
+                            CodigoBAH = "BAH-006",
+                            DistritoId = 5,
+                            Nombre = "Camas plegables de lona para albergues",
+                            StockDisponible = 120,
+                            StockMinimo = 25,
+                            UnidadMedida = "Unidades"
                         });
                 });
 

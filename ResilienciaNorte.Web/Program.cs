@@ -15,6 +15,8 @@ builder.Services.AddDbContext<ResilienciaDbContext>(options =>
 builder.Services.AddScoped<IIncidenteService, IncidenteService>();
 builder.Services.AddScoped<IRecursoService, RecursoService>();
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -22,7 +24,11 @@ app.UseDeveloperExceptionPage();
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
 app.UseAuthorization();
+
+// Mapear Hubs y Endpoints después de Authorization
+app.MapHub<ResilienciaNorte.Web.Hubs.EmergenciaHub>("/emergenciaHub");
 app.MapStaticAssets();
 
 // Redirigir la raíz hacia el panel de incidentes
@@ -36,9 +42,17 @@ app.MapControllerRoute(
 // Aplicar migraciones y Seeding automáticamente si la BD no existe
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ResilienciaDbContext>();
-    // Si la BD local no existe, EF Core la crea y ejecuta el Seeding de Trujillo al instante
-    db.Database.Migrate();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ResilienciaDbContext>();
+        context.Database.Migrate(); // Aplica cualquier migración pendiente
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un error al ejecutar migraciones y sembrado.");
+    }
 }
 
 app.Run();

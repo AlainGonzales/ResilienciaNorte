@@ -1,0 +1,31 @@
+﻿BD Local:
+Elimina las migraciones de la carpeta Migrations y ejecuta el siguiente comando en la consola del Administrador de paquetes:
+Add-Migration MigracionInicialCompleta -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web
+
+Drop-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web -Confirm:$false
+Update-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web
+
+
+
+
+
+BD MonsterASP:
+
+-- 1. Deshabilitar y eliminar todas las Foreign Keys
+DECLARE @dropConstraintsSql NVARCHAR(MAX) = N'';
+SELECT @dropConstraintsSql += N'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) 
+    + '.' + QUOTENAME(OBJECT_NAME(parent_object_id)) 
+    + ' DROP CONSTRAINT ' + QUOTENAME(name) + ';' + CHAR(13)
+FROM sys.foreign_keys;
+EXEC sp_executesql @dropConstraintsSql;
+
+-- 2. Eliminar todas las tablas de usuario
+DECLARE @dropTablesSql NVARCHAR(MAX) = N'';
+SELECT @dropTablesSql += N'DROP TABLE ' + QUOTENAME(TABLE_SCHEMA) 
+    + '.' + QUOTENAME(TABLE_NAME) + ';' + CHAR(13)
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE';
+EXEC sp_executesql @dropTablesSql;
+
+-- MIGRAR A MonsterASP:
+Script-Migration -Idempotent -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web

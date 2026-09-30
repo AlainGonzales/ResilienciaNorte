@@ -1,37 +1,33 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.SignalR;
 using ResilienciaNorte.Domain;
 using ResilienciaNorte.Service;
+using ResilienciaNorte.Web.Hubs;
 
 namespace ResilienciaNorte.Web.Controllers
 {
     public class IncidentesController : Controller
     {
         private readonly IIncidenteService _incidenteService;
+        private readonly IHubContext<EmergenciaHub> _hubContext;
 
-        public IncidentesController(IIncidenteService incidenteService)
+        public IncidentesController(IIncidenteService incidenteService, IHubContext<EmergenciaHub> hubContext)
         {
             _incidenteService = incidenteService;
+            _hubContext = hubContext;
         }
 
-        // GET: /Incidentes/ o /Incidentes/Index
         public async Task<IActionResult> Index(int? distritoId, string? estado)
         {
-            // 1. Cargar el listado de distritos para el dropdown de filtros
             var distritos = await _incidenteService.ObtenerDistritosAsync();
             ViewBag.Distritos = new SelectList(distritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", distritoId);
-
-            // 2. Mantener el estado seleccionado en el ViewBag
             ViewBag.EstadoSeleccionado = estado ?? string.Empty;
 
-            // 3. Obtener los incidentes filtrados garantizando que la colección nunca sea null
             var incidentes = await _incidenteService.ObtenerTodosAsync(distritoId, estado);
-            var modelo = incidentes ?? Enumerable.Empty<IncidenteEmergencia>();
-
-            return View(modelo);
+            return View(incidentes ?? Enumerable.Empty<IncidenteEmergencia>());
         }
 
-        // POST: /Incidentes/CambiarEstado
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CambiarEstado(int id, string nuevoEstado)
@@ -40,7 +36,6 @@ namespace ResilienciaNorte.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: /Incidentes/Registrar
         public async Task<IActionResult> Registrar()
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
@@ -48,19 +43,47 @@ namespace ResilienciaNorte.Web.Controllers
             return View(new IncidenteEmergencia());
         }
 
-        // POST: /Incidentes/Registrar
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Registrar(IncidenteEmergencia incidente)
         {
+            // 1. Ignorar campos que no provienen del formulario del usuario
+            ModelState.Remove(nameof(incidente.CodigoIncidente));
+            ModelState.Remove(nameof(incidente.Distrito));
+
+            // 2. Si no trae código de incidente, generarlo automáticamente
+            if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
+            {
+                incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow.Year}-{new Random().Next(1000, 9999)}";
+            }
+
             if (ModelState.IsValid)
             {
-                await _incidenteService.RegistrarIncidenteAsync(incidente);
+                var nuevo = await _incidenteService.RegistrarIncidenteAsync(incidente);
+                var distritos = await _incidenteService.ObtenerDistritosAsync();
+                var nombreDistrito = distritos.FirstOrDefault(d => d.DistritoId == nuevo.DistritoId)?.Nombre ?? "Distrito";
+
+                // Emitir notificación en vivo por SignalR hacia el Dashboard
+                await _hubContext.Clients.All.SendAsync("NuevoIncidenteReportado", new
+                {
+                    incidenteId = nuevo.IncidenteId,
+                    codigo = nuevo.CodigoIncidente,
+                    sector = nuevo.SectorCritico,
+                    referencia = nuevo.DireccionReferencia ?? "Sin referencia",
+                    distritoId = nuevo.DistritoId,
+                    distritoNombre = nombreDistrito,
+                    tipo = nuevo.TipoEvento,
+                    severidad = nuevo.Severidad,
+                    familias = nuevo.FamiliasAfectadas,
+                    fecha = nuevo.FechaRegistro.ToString("dd/MM/yyyy HH:mm"),
+                    estado = nuevo.Estado
+                });
+
                 return RedirectToAction(nameof(Index));
             }
 
-            var distritos = await _incidenteService.ObtenerDistritosAsync();
-            ViewBag.Distritos = new SelectList(distritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", incidente.DistritoId);
+            var listaDistritos = await _incidenteService.ObtenerDistritosAsync();
+            ViewBag.Distritos = new SelectList(listaDistritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", incidente.DistritoId);
             return View(incidente);
         }
     }
