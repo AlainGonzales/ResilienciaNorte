@@ -1,0 +1,305 @@
+@model ResilienciaNorte.Web.Models.ReabastecimientoViewModel
+@using ResilienciaNorte.Domain
+@{
+    ViewData["Title"] = "Reabastecimiento Subsidiario";
+    var solicitudes = ViewBag.Solicitudes as IEnumerable<SolicitudReabastecimiento>
+                      ?? Enumerable.Empty<SolicitudReabastecimiento>();
+}
+
+<div class="d-flex align-items-center mb-4">
+    <a asp-action="Index" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-arrow-repeat text-warning me-2"></i> Reabastecimiento Subsidiario
+        </h2>
+        <p class="text-muted mb-0">Flujo: Distrito → Provincia → Región</p>
+    </div>
+</div>
+
+@* Mensajes TempData *@
+@if (TempData["Exito"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["Exito"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+        <i class="bi bi-x-circle-fill me-2"></i> @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+
+    @* ── Panel izquierdo: Formulario nueva solicitud ─────────────────── *@
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header card-header-resiliencia">
+                <i class="bi bi-send-fill me-2"></i> Nueva Solicitud de Reabastecimiento
+            </div>
+            <div class="card-body">
+                @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
+                {
+                    <div class="alert alert-danger alert-sm">
+                        <ul class="mb-0 small">
+                            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                            {
+                                <li>@error.ErrorMessage</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <form asp-action="CrearSolicitud" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="DistritoOrigenId" class="form-label fw-semibold"></label>
+                        <select asp-for="DistritoOrigenId" asp-items="Model.Distritos" class="form-select">
+                            <option value="">— Seleccione el distrito —</option>
+                        </select>
+                        <span asp-validation-for="DistritoOrigenId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="RecursoId" class="form-label fw-semibold"></label>
+                        <select asp-for="RecursoId" asp-items="Model.Recursos" class="form-select">
+                            <option value="">— Recursos con stock crítico —</option>
+                        </select>
+                        <span asp-validation-for="RecursoId" class="text-danger small"></span>
+                        <div class="form-text text-muted">Solo se muestran recursos en nivel crítico.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="NivelDestino" class="form-label fw-semibold"></label>
+                        <select asp-for="NivelDestino"
+                                asp-items="ResilienciaNorte.Web.Models.ReabastecimientoViewModel.NivelesDestino"
+                                class="form-select">
+                            <option value="">— Seleccione nivel —</option>
+                        </select>
+                        <span asp-validation-for="NivelDestino" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="CantidadSolicitada" class="form-label fw-semibold"></label>
+                        <input asp-for="CantidadSolicitada" type="number" min="1"
+                               class="form-control" placeholder="Ej. 100" />
+                        <span asp-validation-for="CantidadSolicitada" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Justificacion" class="form-label fw-semibold"></label>
+                        <textarea asp-for="Justificacion" class="form-control" rows="3"
+                                  placeholder="Describe la situación que justifica el reabastecimiento..."></textarea>
+                        <span asp-validation-for="Justificacion" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-semibold">
+                        <i class="bi bi-send-fill me-1"></i> Enviar Solicitud
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @* ── Panel derecho: Lista de solicitudes ─────────────────────────── *@
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header card-header-resiliencia">
+                <i class="bi bi-list-check me-2"></i> Solicitudes Registradas
+            </div>
+
+            @* Sub-filtro por estado *@
+            <div class="card-body border-bottom py-2">
+                <form method="get" asp-action="Reabastecimiento" class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <select name="distritoId" class="form-select form-select-sm">
+                            <option value="">— Todos los distritos —</option>
+                            @foreach (var item in (IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewBag.Distritos)
+                            {
+                                <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select name="estado" class="form-select form-select-sm">
+                            <option value="">— Todos los estados —</option>
+                            <option value="Pendiente" selected="@(ViewBag.EstadoSeleccionado == "Pendiente")">Pendiente</option>
+                            <option value="Aprobado" selected="@(ViewBag.EstadoSeleccionado == "Aprobado")">Aprobado</option>
+                            <option value="EnTransito" selected="@(ViewBag.EstadoSeleccionado == "EnTransito")">En Tránsito</option>
+                            <option value="Rechazado" selected="@(ViewBag.EstadoSeleccionado == "Rechazado")">Rechazado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-search me-1"></i>Filtrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-body p-0">
+                @if (!solicitudes.Any())
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1"></i>
+                        <p class="mt-2">No hay solicitudes con los filtros aplicados.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var s in solicitudes)
+                        {
+                            <div class="list-group-item py-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <code class="small">@s.CodigoSolicitud</code>
+                                        <span class="badge @(s.NivelDestino == "Provincial" ? "bg-primary" : "bg-dark") ms-2">
+                                            @s.NivelDestino
+                                        </span>
+                                        @switch (s.Estado)
+                                        {
+                                            case "Pendiente":
+                                                <span class="badge badge-alto ms-1">Pendiente</span>
+                                                break;
+                                            case "Aprobado":
+                                                <span class="badge bg-success ms-1">Aprobado</span>
+                                                break;
+                                            case "EnTransito":
+                                                <span class="badge bg-info text-dark ms-1">En Tránsito</span>
+                                                break;
+                                            case "Rechazado":
+                                                <span class="badge bg-secondary ms-1">Rechazado</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-light text-dark ms-1">@s.Estado</span>
+                                                break;
+                                        }
+                                    </div>
+                                    <small class="text-muted">
+                                        @s.FechaSolicitud.ToLocalTime().ToString("dd/MM/yy HH:mm")
+                                    </small>
+                                </div>
+
+                                <div class="mt-1">
+                                    <strong>Recurso:</strong> @(s.Recurso?.Nombre ?? "—") ·
+                                    <strong>Cant.:</strong> @s.CantidadSolicitada @(s.Recurso?.UnidadMedida ?? "") ·
+                                    <strong>Distrito:</strong> @(s.DistritoOrigen?.Nombre ?? "—")
+                                </div>
+                                <div class="text-muted small mt-1">
+                                    <i class="bi bi-chat-left-text me-1"></i> @s.Justificacion
+                                </div>
+
+                                @* Botones de gestión (solo si está Pendiente) *@
+                                @if (s.Estado == "Pendiente")
+                                {
+                                    <div class="d-flex gap-2 mt-2">
+                                        <form asp-action="AprobarSolicitud" method="post"
+                                              onsubmit="return confirm('¿Aprobar la solicitud @s.CodigoSolicitud?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="solicitudId" value="@s.SolicitudId" />
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-check-circle me-1"></i> Aprobar
+                                            </button>
+                                        </form>
+
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalRechazar"
+                                                data-solicitud-id="@s.SolicitudId"
+                                                data-solicitud-codigo="@s.CodigoSolicitud">
+                                            <i class="bi bi-x-circle me-1"></i> Rechazar
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Modal de rechazo *@
+<div class="modal fade" id="modalRechazar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-x-circle text-danger me-2"></i> Rechazar Solicitud
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="RechazarSolicitud" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <input type="hidden" name="solicitudId" id="modalSolicitudId" />
+                    <p class="text-muted small">Solicitud: <strong id="modalCodigoSolicitud"></strong></p>
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label fw-semibold">Motivo del rechazo</label>
+                        <textarea name="motivo" id="motivo" class="form-control" rows="3" required
+                                  placeholder="Explica el motivo del rechazo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-x-circle me-1"></i> Confirmar Rechazo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        // Rellenar modal de rechazo con datos de la solicitud
+        document.getElementById("modalRechazar").addEventListener("show.bs.modal", function (event) {
+            const btn = event.relatedTarget;
+            document.getElementById("modalSolicitudId").value = btn.dataset.solicitudId;
+            document.getElementById("modalCodigoSolicitud").textContent = btn.dataset.solicitudCodigo;
+        });
+
+        // SignalR: escuchar notificaciones de nuevas solicitudes y aprobaciones
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/emergenciaHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("SolicitudAprobada", function (data) {
+            const banner = document.createElement("div");
+            banner.className = "alert alert-success alert-dismissible fade show shadow-sm";
+            banner.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>
+                Solicitud ID <strong>${data.solicitudId}</strong> fue aprobada.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector("main").prepend(banner);
+            setTimeout(() => location.reload(), 2000);
+        });
+
+        connection.on("SolicitudRechazada", function (data) {
+            setTimeout(() => location.reload(), 1500);
+        });
+
+        connection.on("NuevaSolicitudReabastecimiento", function (data) {
+            const banner = document.createElement("div");
+            banner.className = "alert alert-warning alert-dismissible fade show shadow-sm";
+            banner.innerHTML = `<i class="bi bi-arrow-repeat me-2"></i>
+                Nueva solicitud de reabastecimiento recibida: <strong>${data.codigoSolicitud}</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector("main").prepend(banner);
+            setTimeout(() => location.reload(), 2000);
+        });
+
+        connection.start().catch(err => console.error("SignalR error:", err));
+    </script>
+}

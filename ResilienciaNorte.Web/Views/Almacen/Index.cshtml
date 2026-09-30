@@ -1,0 +1,207 @@
+@model IEnumerable<ResilienciaNorte.Domain.RecursoAlmacen>
+@{
+    ViewData["Title"] = "Inventario del Almacén";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-box-seam-fill text-warning me-2"></i> Almacén de Contingencia (BAH)
+        </h2>
+        <p class="text-muted mb-0">Inventario actualizado en tiempo real · Módulo 3</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Ingreso" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-circle-fill me-1"></i> Registrar Ingreso
+        </a>
+        <a asp-action="Kardex" class="btn btn-outline-secondary shadow-sm">
+            <i class="bi bi-journal-text me-1"></i> Ver Kardex
+        </a>
+        <a asp-action="Reabastecimiento" class="btn btn-outline-warning shadow-sm">
+            <i class="bi bi-arrow-repeat me-1"></i> Reabastecimiento
+        </a>
+    </div>
+</div>
+
+@* Banner de alertas de stock crítico *@
+@if ((int)(ViewBag.AlertasStock ?? 0) > 0)
+{
+    <div class="alert alert-danger d-flex align-items-center shadow-sm mb-4" role="alert" id="alertaStockCritico">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div>
+            <strong>¡Alerta!</strong> Hay <strong>@ViewBag.AlertasStock</strong> recurso(s) con stock en nivel crítico.
+            <a asp-action="Reabastecimiento" class="alert-link ms-2">Gestionar reabastecimiento →</a>
+        </div>
+    </div>
+}
+
+@* TempData mensajes *@
+@if (TempData["Exito"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show shadow-sm">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["Exito"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+        <i class="bi bi-x-circle-fill me-2"></i> @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Filtros *@
+<div class="card shadow-sm mb-4">
+    <div class="card-header card-header-resiliencia">
+        <i class="bi bi-funnel-fill me-2"></i> Filtrar Inventario
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Distrito</label>
+                <select name="distritoId" class="form-select">
+                    <option value="">— Todos los distritos —</option>
+                    @foreach (var item in (IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewBag.Distritos)
+                    {
+                        <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Categoría</label>
+                <select name="categoria" class="form-select">
+                    <option value="">— Todas las categorías —</option>
+                    <option value="Techo" selected="@(ViewBag.CategoriaSeleccionada == "Techo")">Techo</option>
+                    <option value="Abrigo" selected="@(ViewBag.CategoriaSeleccionada == "Abrigo")">Abrigo</option>
+                    <option value="Alimentos" selected="@(ViewBag.CategoriaSeleccionada == "Alimentos")">Alimentos</option>
+                    <option value="Herramientas" selected="@(ViewBag.CategoriaSeleccionada == "Herramientas")">Herramientas</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i> Filtrar
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary w-50">Limpiar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Tabla de inventario *@
+<div class="card shadow-sm">
+    <div class="card-header card-header-resiliencia d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i> Stock Actual</span>
+        <span class="badge bg-light text-dark">@Model.Count() recurso(s)</span>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1"></i>
+                <p class="mt-2">No hay recursos registrados con los filtros aplicados.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código BAH</th>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Distrito</th>
+                            <th class="text-center">Stock Disponible</th>
+                            <th class="text-center">Stock Mínimo</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model)
+                        {
+                            <tr class="@(r.EsStockCritico() ? "table-danger" : "")">
+                                <td><code>@r.CodigoBAH</code></td>
+                                <td class="fw-semibold">@r.Nombre</td>
+                                <td>
+                                    <span class="badge bg-secondary">@r.Categoria</span>
+                                </td>
+                                <td>@(r.Distrito?.Nombre ?? "—")</td>
+                                <td class="text-center fw-bold @(r.EsStockCritico() ? "text-danger" : "text-success")">
+                                    @r.StockDisponible <small class="text-muted fw-normal">@r.UnidadMedida</small>
+                                </td>
+                                <td class="text-center text-muted">@r.StockMinimo</td>
+                                <td class="text-center">
+                                    @if (r.EsStockCritico())
+                                    {
+                                        <span class="badge badge-critico">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Crítico
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Normal
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <a asp-action="Kardex" asp-route-recursoId="@r.RecursoId"
+                                       class="btn btn-sm btn-outline-info" title="Ver Kardex de este recurso">
+                                        <i class="bi bi-journal-text"></i>
+                                    </a>
+                                    @if (r.EsStockCritico())
+                                    {
+                                        <a asp-action="Reabastecimiento" asp-route-distritoId="@r.DistritoId"
+                                           class="btn btn-sm btn-warning ms-1" title="Solicitar reabastecimiento">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        // Conectar al hub para recibir actualizaciones de inventario en tiempo real
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/emergenciaHub")
+            .withAutomaticReconnect()
+            .build();
+
+        // Actualización de inventario: recargar la página para reflejar cambios
+        connection.on("ActualizarInventario", function (data) {
+            if (data.esCritico) {
+                document.getElementById("alertaStockCritico")?.remove();
+                const banner = document.createElement("div");
+                banner.className = "alert alert-warning alert-dismissible fade show";
+                banner.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Stock crítico detectado: recurso ID <strong>${data.recursoId}</strong> — stock actual: <strong>${data.stockActual}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                document.querySelector("main").prepend(banner);
+            }
+            // Recargar la tabla después de 1 segundo para mostrar el nuevo stock
+            setTimeout(() => location.reload(), 1500);
+        });
+
+        connection.on("AlertaStockCritico", function (data) {
+            const banner = document.createElement("div");
+            banner.className = "alert alert-danger alert-dismissible fade show shadow-sm";
+            banner.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>¡Stock crítico!</strong> ${data.nombre}: <strong>${data.stockActual}</strong> unidades
+                (mínimo: ${data.stockMinimo}).
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.querySelector("main").prepend(banner);
+        });
+
+        connection.start().catch(err => console.error("SignalR error:", err));
+    </script>
+}

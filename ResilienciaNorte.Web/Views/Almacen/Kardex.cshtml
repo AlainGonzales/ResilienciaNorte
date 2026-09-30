@@ -1,0 +1,158 @@
+@model ResilienciaNorte.Web.Models.KardexFiltroViewModel
+@using ResilienciaNorte.Domain
+@{
+    ViewData["Title"] = "Kardex de Movimientos";
+    var movimientos = ViewBag.Movimientos as IEnumerable<MovimientoAlmacen>
+                      ?? Enumerable.Empty<MovimientoAlmacen>();
+}
+
+<div class="d-flex align-items-center mb-4">
+    <a asp-action="Index" class="btn btn-outline-secondary me-3">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-journal-text text-info me-2"></i> Kardex de Movimientos
+        </h2>
+        <p class="text-muted mb-0">Registro inmutable de entradas y salidas del almacén</p>
+    </div>
+</div>
+
+@* Filtros *@
+<div class="card shadow-sm mb-4">
+    <div class="card-header card-header-resiliencia">
+        <i class="bi bi-funnel-fill me-2"></i> Filtros
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Kardex" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label asp-for="DistritoId" class="form-label fw-semibold"></label>
+                <select asp-for="DistritoId" asp-items="Model.Distritos" class="form-select">
+                    <option value="">— Todos —</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="RecursoId" class="form-label fw-semibold"></label>
+                <select asp-for="RecursoId" asp-items="Model.Recursos" class="form-select">
+                    <option value="">— Todos —</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label asp-for="Desde" class="form-label fw-semibold"></label>
+                <input asp-for="Desde" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label asp-for="Hasta" class="form-label fw-semibold"></label>
+                <input asp-for="Hasta" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-1"></i> Buscar
+                </button>
+                <a asp-action="Kardex" class="btn btn-outline-secondary">
+                    <i class="bi bi-x"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Tabla de movimientos *@
+<div class="card shadow-sm">
+    <div class="card-header card-header-resiliencia d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ol me-2"></i> Movimientos</span>
+        <span class="badge bg-light text-dark">@movimientos.Count() registro(s)</span>
+    </div>
+    <div class="card-body p-0">
+        @if (!movimientos.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-search fs-1"></i>
+                <p class="mt-2">No se encontraron movimientos con los filtros aplicados.</p>
+                <a asp-action="Kardex" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Recurso</th>
+                            <th>Distrito</th>
+                            <th class="text-center">Tipo</th>
+                            <th>Concepto</th>
+                            <th>Documento</th>
+                            <th>Entidad</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Stock Ant.</th>
+                            <th class="text-center">Stock Post.</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in movimientos)
+                        {
+                            <tr>
+                                <td class="text-nowrap small">
+                                    @m.FechaHora.ToLocalTime().ToString("dd/MM/yy HH:mm")
+                                </td>
+                                <td>
+                                    <span class="fw-semibold small">@(m.Recurso?.Nombre ?? "—")</span>
+                                    <br /><code class="small text-muted">@(m.Recurso?.CodigoBAH ?? "")</code>
+                                </td>
+                                <td class="small">@(m.Distrito?.Nombre ?? "—")</td>
+                                <td class="text-center">
+                                    @if (m.TipoMovimiento == "ENTRADA")
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-arrow-down-circle-fill me-1"></i>ENTRADA
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-arrow-up-circle-fill me-1"></i>SALIDA
+                                        </span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @switch (m.ConceptoMovimiento)
+                                    {
+                                        case "CompraDirecta":
+                                            <span class="badge bg-primary">Compra Directa</span>
+                                            break;
+                                        case "Donacion":
+                                            <span class="badge bg-info text-dark">Donación</span>
+                                            break;
+                                        case "Sobrante":
+                                            <span class="badge bg-secondary">Sobrante</span>
+                                            break;
+                                        case "DespachoAuxilio":
+                                            <span class="badge bg-warning text-dark">Despacho</span>
+                                            break;
+                                        case "TransferenciaSupradistrital":
+                                            <span class="badge bg-dark">Transferencia</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-light text-dark">@m.ConceptoMovimiento</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="small text-muted">@(m.DocumentoReferencia ?? "—")</td>
+                                <td class="small text-muted">@(m.EntidadOrigenDestino ?? "—")</td>
+                                <td class="text-center fw-bold @(m.TipoMovimiento == "ENTRADA" ? "text-success" : "text-danger")">
+                                    @(m.TipoMovimiento == "ENTRADA" ? "+" : "-")@m.Cantidad
+                                </td>
+                                <td class="text-center small text-muted">@m.StockAnterior</td>
+                                <td class="text-center fw-semibold">@m.StockPosterior</td>
+                                <td class="small text-muted">@m.UsuarioResponsableId</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

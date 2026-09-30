@@ -14,6 +14,8 @@ builder.Services.AddDbContext<ResilienciaDbContext>(options =>
 // Inyección de la Capa de Servicios (Regla: El controlador solo consume servicios)
 builder.Services.AddScoped<IIncidenteService, IncidenteService>();
 builder.Services.AddScoped<IRecursoService, RecursoService>();
+// Módulo 3: Almacén, Kardex y Reabastecimiento
+builder.Services.AddScoped<IAlmacenService, AlmacenService>();
 
 builder.Services.AddSignalR();
 
