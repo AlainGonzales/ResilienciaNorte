@@ -12,7 +12,7 @@ using ResilienciaNorte.Repository;
 namespace ResilienciaNorte.Repository.Migrations
 {
     [DbContext(typeof(ResilienciaDbContext))]
-    [Migration("20260930054947_MigracionInicialCompleta")]
+    [Migration("20261001052555_MigracionInicialCompleta")]
     partial class MigracionInicialCompleta
     {
         /// <inheritdoc />
@@ -246,9 +246,6 @@ namespace ResilienciaNorte.Repository.Migrations
                     b.Property<int>("DistritoId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DistritoId1")
-                        .HasColumnType("int");
-
                     b.Property<string>("DniCiudadano")
                         .IsRequired()
                         .HasMaxLength(8)
@@ -299,8 +296,6 @@ namespace ResilienciaNorte.Repository.Migrations
                         .IsUnique();
 
                     b.HasIndex("DistritoId");
-
-                    b.HasIndex("DistritoId1");
 
                     b.ToTable("IncidentesEmergencia");
 
@@ -467,9 +462,6 @@ namespace ResilienciaNorte.Repository.Migrations
                     b.Property<int>("DistritoId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DistritoId1")
-                        .HasColumnType("int");
-
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -492,8 +484,6 @@ namespace ResilienciaNorte.Repository.Migrations
                         .IsUnique();
 
                     b.HasIndex("DistritoId");
-
-                    b.HasIndex("DistritoId1");
 
                     b.ToTable("RecursosAlmacen");
 
@@ -692,14 +682,10 @@ namespace ResilienciaNorte.Repository.Migrations
             modelBuilder.Entity("ResilienciaNorte.Domain.IncidenteEmergencia", b =>
                 {
                     b.HasOne("ResilienciaNorte.Domain.Distrito", "Distrito")
-                        .WithMany()
+                        .WithMany("Incidentes")
                         .HasForeignKey("DistritoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("ResilienciaNorte.Domain.Distrito", null)
-                        .WithMany("Incidentes")
-                        .HasForeignKey("DistritoId1");
 
                     b.Navigation("Distrito");
                 });
@@ -737,14 +723,10 @@ namespace ResilienciaNorte.Repository.Migrations
             modelBuilder.Entity("ResilienciaNorte.Domain.RecursoAlmacen", b =>
                 {
                     b.HasOne("ResilienciaNorte.Domain.Distrito", "Distrito")
-                        .WithMany()
+                        .WithMany("Recursos")
                         .HasForeignKey("DistritoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("ResilienciaNorte.Domain.Distrito", null)
-                        .WithMany("Recursos")
-                        .HasForeignKey("DistritoId1");
 
                     b.Navigation("Distrito");
                 });
