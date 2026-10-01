@@ -1,0 +1,52 @@
+﻿@model IEnumerable<ResilienciaNorte.Domain.SolicitudReabastecimiento>
+@{
+    ViewData["Title"] = "Solicitudes de Reabastecimiento";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark"><i class="bi bi-arrow-repeat text-danger"></i> Solicitudes de Reabastecimiento Subsidiario</h3>
+        <p class="text-muted small mb-0">Escalamiento multinivel: Distrito → Provincia → Región</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Existencias</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Código Solicitud</th>
+                    <th>Distrito Solicitante</th>
+                    <th>Recurso Requerido</th>
+                    <th>Cantidad</th>
+                    <th>Nivel Destino</th>
+                    <th>Fecha Emisión</th>
+                    <th>Justificación</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No existen solicitudes de reabastecimiento pendientes.</td>
+                    </tr>
+                }
+                @foreach (var s in Model)
+                {
+                    <tr>
+                        <td class="fw-bold small">@s.CodigoSolicitud</td>
+                        <td><span class="badge bg-secondary">@s.DistritoOrigen?.Nombre</span></td>
+                        <td class="fw-bold">@s.Recurso?.Nombre</td>
+                        <td class="fw-bold text-danger">@s.CantidadSolicitada</td>
+                        <td><span class="badge bg-primary">@s.NivelDestino</span></td>
+                        <td class="small">@s.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="small">@s.Justificacion</td>
+                        <td><span class="badge bg-warning text-dark">@s.Estado</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

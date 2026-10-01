@@ -38,9 +38,9 @@ namespace ResilienciaNorte.Repository
                 entity.Property(e => e.Severidad).HasMaxLength(20).HasDefaultValue("Moderado");
                 entity.Property(e => e.Estado).HasMaxLength(20).HasDefaultValue("Reportado");
 
-                // Relación con Distrito
+                // 1. Relación con IncidenteEmergencia
                 entity.HasOne(e => e.Distrito)
-                      .WithMany()
+                      .WithMany(d => d.Incidentes) // Enlaza con la colección de Distrito.cs
                       .HasForeignKey(e => e.DistritoId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
@@ -54,9 +54,9 @@ namespace ResilienciaNorte.Repository
                 entity.Property(e => e.Categoria).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.UnidadMedida).HasMaxLength(20).IsRequired();
 
-                // Relación con Distrito custodio
+                // 2. Relación con RecursoAlmacen
                 entity.HasOne(e => e.Distrito)
-                      .WithMany()
+                      .WithMany(d => d.Recursos) // Enlaza con la colección de Distrito.cs
                       .HasForeignKey(e => e.DistritoId)
                       .OnDelete(DeleteBehavior.Restrict);
             });

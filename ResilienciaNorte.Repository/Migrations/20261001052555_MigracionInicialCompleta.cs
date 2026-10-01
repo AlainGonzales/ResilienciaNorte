@@ -86,8 +86,7 @@ namespace ResilienciaNorte.Repository.Migrations
                     Severidad = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Moderado"),
                     Estado = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Reportado"),
                     FechaRegistro = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    DistritoId = table.Column<int>(type: "int", nullable: false),
-                    DistritoId1 = table.Column<int>(type: "int", nullable: true)
+                    DistritoId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -98,11 +97,6 @@ namespace ResilienciaNorte.Repository.Migrations
                         principalTable: "Distritos",
                         principalColumn: "DistritoId",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_IncidentesEmergencia_Distritos_DistritoId1",
-                        column: x => x.DistritoId1,
-                        principalTable: "Distritos",
-                        principalColumn: "DistritoId");
                 });
 
             migrationBuilder.CreateTable(
@@ -117,8 +111,7 @@ namespace ResilienciaNorte.Repository.Migrations
                     UnidadMedida = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     StockDisponible = table.Column<int>(type: "int", nullable: false),
                     StockMinimo = table.Column<int>(type: "int", nullable: false),
-                    DistritoId = table.Column<int>(type: "int", nullable: false),
-                    DistritoId1 = table.Column<int>(type: "int", nullable: true)
+                    DistritoId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -129,11 +122,6 @@ namespace ResilienciaNorte.Repository.Migrations
                         principalTable: "Distritos",
                         principalColumn: "DistritoId",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_RecursosAlmacen_Distritos_DistritoId1",
-                        column: x => x.DistritoId1,
-                        principalTable: "Distritos",
-                        principalColumn: "DistritoId");
                 });
 
             migrationBuilder.CreateTable(
@@ -280,24 +268,24 @@ namespace ResilienciaNorte.Repository.Migrations
 
             migrationBuilder.InsertData(
                 table: "IncidentesEmergencia",
-                columns: new[] { "IncidenteId", "CodigoIncidente", "Descripcion", "DireccionReferencia", "DistritoId", "DistritoId1", "DniCiudadano", "Estado", "FamiliasAfectadas", "FechaRegistro", "NombreCiudadano", "SectorCritico", "Severidad", "Telefono", "TipoEvento" },
+                columns: new[] { "IncidenteId", "CodigoIncidente", "Descripcion", "DireccionReferencia", "DistritoId", "DniCiudadano", "Estado", "FamiliasAfectadas", "FechaRegistro", "NombreCiudadano", "SectorCritico", "Severidad", "Telefono", "TipoEvento" },
                 values: new object[,]
                 {
-                    { 1, "ALT-2026-0001", "Drenaje pluvial colapsado por barro acumulado tras lluvias en la parte alta. Afectación a viviendas contiguas.", "Av. Sánchez Carrión cuadra 12, El Porvenir", 1, null, "71234567", "Constatado", 18, new DateTime(2026, 9, 18, 14, 30, 0, 0, DateTimeKind.Utc), "Juan Carlos Pérez", "Sector Río Seco - Quebrada San Ildefonso", "Crítico", "944112233", "Desborde Quebrada" },
-                    { 2, "ALT-2026-0002", "Escorrentía superficial ingresando a predios en el margen de la carretera.", "Entrada principal a El Trópico, Huanchaco", 4, null, "40987654", "Reportado", 5, new DateTime(2026, 9, 18, 18, 15, 0, 0, DateTimeKind.Utc), "María Elena Rojas", "Entrada principal a El Trópico", "Moderado", "988776655", "Inundación Pluvial" }
+                    { 1, "ALT-2026-0001", "Drenaje pluvial colapsado por barro acumulado tras lluvias en la parte alta. Afectación a viviendas contiguas.", "Av. Sánchez Carrión cuadra 12, El Porvenir", 1, "71234567", "Constatado", 18, new DateTime(2026, 9, 18, 14, 30, 0, 0, DateTimeKind.Utc), "Juan Carlos Pérez", "Sector Río Seco - Quebrada San Ildefonso", "Crítico", "944112233", "Desborde Quebrada" },
+                    { 2, "ALT-2026-0002", "Escorrentía superficial ingresando a predios en el margen de la carretera.", "Entrada principal a El Trópico, Huanchaco", 4, "40987654", "Reportado", 5, new DateTime(2026, 9, 18, 18, 15, 0, 0, DateTimeKind.Utc), "María Elena Rojas", "Entrada principal a El Trópico", "Moderado", "988776655", "Inundación Pluvial" }
                 });
 
             migrationBuilder.InsertData(
                 table: "RecursosAlmacen",
-                columns: new[] { "RecursoId", "Categoria", "CodigoBAH", "DistritoId", "DistritoId1", "Nombre", "StockDisponible", "StockMinimo", "UnidadMedida" },
+                columns: new[] { "RecursoId", "Categoria", "CodigoBAH", "DistritoId", "Nombre", "StockDisponible", "StockMinimo", "UnidadMedida" },
                 values: new object[,]
                 {
-                    { 1, "Defensa Ribereña", "BAH-001", 1, null, "Sacos terreros de polipropileno", 15000, 500, "Unidades" },
-                    { 2, "Techo", "BAH-002", 1, null, "Bobinas de plástico impermeable 6x50m", 300, 20, "Rollos" },
-                    { 3, "Equipamiento", "BAH-003", 1, null, "Motobomba de achique autocebante 4\"", 15, 3, "Equipos" },
-                    { 4, "Techo", "BAH-004", 1, null, "Calaminas galvanizadas 1.83x0.83m", 5000, 200, "Planchas" },
-                    { 5, "Alimentos", "BAH-005", 1, null, "Kit de víveres no perecibles (ración 3 días)", 2000, 100, "Kits" },
-                    { 6, "Abrigo", "BAH-006", 5, null, "Camas plegables de lona para albergues", 120, 25, "Unidades" }
+                    { 1, "Defensa Ribereña", "BAH-001", 1, "Sacos terreros de polipropileno", 15000, 500, "Unidades" },
+                    { 2, "Techo", "BAH-002", 1, "Bobinas de plástico impermeable 6x50m", 300, 20, "Rollos" },
+                    { 3, "Equipamiento", "BAH-003", 1, "Motobomba de achique autocebante 4\"", 15, 3, "Equipos" },
+                    { 4, "Techo", "BAH-004", 1, "Calaminas galvanizadas 1.83x0.83m", 5000, 200, "Planchas" },
+                    { 5, "Alimentos", "BAH-005", 1, "Kit de víveres no perecibles (ración 3 días)", 2000, 100, "Kits" },
+                    { 6, "Abrigo", "BAH-006", 5, "Camas plegables de lona para albergues", 120, 25, "Unidades" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -320,11 +308,6 @@ namespace ResilienciaNorte.Repository.Migrations
                 name: "IX_IncidentesEmergencia_DistritoId",
                 table: "IncidentesEmergencia",
                 column: "DistritoId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_IncidentesEmergencia_DistritoId1",
-                table: "IncidentesEmergencia",
-                column: "DistritoId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MovimientosAlmacen_DistritoId",
@@ -358,11 +341,6 @@ namespace ResilienciaNorte.Repository.Migrations
                 name: "IX_RecursosAlmacen_DistritoId",
                 table: "RecursosAlmacen",
                 column: "DistritoId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_RecursosAlmacen_DistritoId1",
-                table: "RecursosAlmacen",
-                column: "DistritoId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SolicitudesReabastecimiento_CodigoSolicitud",
