@@ -1,0 +1,104 @@
+﻿@model IEnumerable<ResilienciaNorte.Domain.MovimientoAlmacen>
+@{
+    var recurso = ViewBag.Recurso as ResilienciaNorte.Domain.RecursoAlmacen;
+    ViewData["Title"] = "Kardex de Existencias";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark"><i class="bi bi-journal-text text-primary"></i> Kardex Físico Inmutable</h3>
+        <p class="text-muted small mb-0">Bien: <strong>@recurso?.Nombre</strong> (@recurso?.CodigoBAH) | Almacén: <strong>@recurso?.Distrito?.Nombre</strong></p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Existencias</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha / Hora (UTC)</th>
+                    <th>Tipo</th>
+                    <th>Concepto</th>
+                    <th>Documento</th>
+                    <th>Origen / Destino</th>
+                    <th class="text-center">Stock Ant.</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-center">Stock Post.</th>
+                    <th>Responsable</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyKardex">
+                @if (!Model.Any())
+                {
+                    <tr id="filaSinMovimientos">
+                        <td colspan="9" class="text-center py-4 text-muted">Sin movimientos registrados para este recurso.</td>
+                    </tr>
+                }
+                @foreach (var m in Model)
+                {
+                    <tr>
+                        <td class="small">@m.FechaHora.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            <span class="badge @(m.TipoMovimiento == "ENTRADA" ? "bg-success" : "bg-danger")">
+                                @m.TipoMovimiento
+                            </span>
+                        </td>
+                        <td class="small fw-bold">@m.ConceptoMovimiento</td>
+                        <td class="small text-muted">@m.DocumentoReferencia</td>
+                        <td class="small">@m.EntidadOrigenDestino</td>
+                        <td class="text-center text-muted">@m.StockAnterior</td>
+                        <td class="text-center fw-bold @(m.TipoMovimiento == "ENTRADA" ? "text-success" : "text-danger")">
+                            @(m.TipoMovimiento == "ENTRADA" ? "+" : "-")@m.Cantidad
+                        </td>
+                        <td class="text-center fw-bold">@m.StockPosterior</td>
+                        <td class="small text-muted">@m.UsuarioResponsableId</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const recursoIdActual = @(recurso?.RecursoId ?? 0);
+
+        const conexionKardex = new signalR.HubConnectionBuilder()
+            .withUrl("/emergenciaHub")
+            .withAutomaticReconnect()
+            .build();
+
+        conexionKardex.on("NuevoMovimientoKardex", function (data) {
+            if (data.recursoId === recursoIdActual) {
+                const filaVacia = document.getElementById("filaSinMovimientos");
+                if (filaVacia) filaVacia.remove();
+
+                const esEntrada = data.tipo === "ENTRADA";
+                const badgeColor = esEntrada ? "bg-success" : "bg-danger";
+                const textoSigno = esEntrada ? "+" : "-";
+                const textoColor = esEntrada ? "text-success" : "text-danger";
+
+                const nuevaFila = `
+                    <tr style="animation: filaNueva 3s ease-out;">
+                        <td class="small">${data.fechaHora}</td>
+                        <td><span class="badge ${badgeColor}">${data.tipo}</span></td>
+                        <td class="small fw-bold">${data.concepto}</td>
+                        <td class="small text-muted">${data.documento}</td>
+                        <td class="small">${data.origenDestino}</td>
+                        <td class="text-center text-muted">${data.stockAnterior}</td>
+                        <td class="text-center fw-bold ${textoColor}">${textoSigno}${data.cantidad}</td>
+                        <td class="text-center fw-bold">${data.stockPosterior}</td>
+                        <td class="small text-muted">${data.responsable}</td>
+                    </tr>
+                `;
+
+                const tbody = document.getElementById("tbodyKardex");
+                tbody.insertAdjacentHTML("afterbegin", nuevaFila);
+            }
+        });
+
+        conexionKardex.start().catch(err => console.error("Error al conectar SignalR en Kardex:", err));
+    </script>
+}

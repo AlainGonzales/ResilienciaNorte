@@ -5,28 +5,13 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-box-seam text-primary"></i> Almacén de Contingencia (BAH)</h2>
-        <p class="text-muted small mb-0">Catálogo de Bienes de Ayuda Humanitaria, Kardex y Reabastecimiento Subsidiario</p>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-box-seam text-primary"></i> Almacén de Contingencia BAH</h2>
+        <p class="text-muted small mb-0">Control de Existencias Físicas y Kardex Inmutable - Provincia de Trujillo</p>
     </div>
-    <a asp-action="Solicitudes" class="btn btn-outline-danger shadow-sm">
+    <a asp-action="Solicitudes" class="btn btn-outline-primary">
         <i class="bi bi-arrow-repeat me-1"></i> Solicitudes de Reabastecimiento
     </a>
 </div>
-
-@if (TempData["MensajeExito"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
-        <i class="bi bi-check-circle-fill me-1"></i> @TempData["MensajeExito"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-@if (TempData["MensajeError"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
 
 <!-- Filtros de Inventario -->
 <div class="card shadow-sm border-0 mb-3 bg-light">
@@ -34,39 +19,37 @@
         <form method="get" class="row g-2 align-items-center">
             <div class="col-md-5">
                 <select name="distritoId" asp-items="ViewBag.Distritos" class="form-select form-select-sm">
-                    <option value="">-- Todos los Almacenes Distritales --</option>
+                    <option value="">-- Todos los distritos custodios --</option>
                 </select>
             </div>
             <div class="col-md-4">
                 <select name="categoria" class="form-select form-select-sm">
                     <option value="">-- Todas las categorías --</option>
-                    <option value="Defensa Ribereña" selected="@(ViewBag.CategoriaSeleccionada == "Defensa Ribereña")">Defensa Ribereña</option>
-                    <option value="Techo" selected="@(ViewBag.CategoriaSeleccionada == "Techo")">Techo</option>
-                    <option value="Equipamiento" selected="@(ViewBag.CategoriaSeleccionada == "Equipamiento")">Equipamiento</option>
-                    <option value="Alimentos" selected="@(ViewBag.CategoriaSeleccionada == "Alimentos")">Alimentos</option>
-                    <option value="Abrigo" selected="@(ViewBag.CategoriaSeleccionada == "Abrigo")">Abrigo</option>
+                    <option value="Defensa Ribereña">Defensa Ribereña</option>
+                    <option value="Techo">Techo</option>
+                    <option value="Equipamiento">Equipamiento</option>
+                    <option value="Alimentos">Alimentos</option>
+                    <option value="Abrigo">Abrigo</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-1">
-                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-funnel"></i> Filtrar</button>
-                <a asp-action="Index" class="btn btn-sm btn-outline-secondary px-2"><i class="bi bi-arrow-counterclockwise"></i></a>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-secondary w-100"><i class="bi bi-funnel"></i> Filtrar Inventario</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Tabla de Existencias y Acciones -->
+<!-- Tabla de Existencias -->
 <div class="card shadow-sm border-0">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="card-header-resiliencia">
                 <tr>
                     <th>Código BAH</th>
-                    <th>Bien Humanitario</th>
+                    <th>Bien de Ayuda Humanitaria</th>
                     <th>Categoría</th>
-                    <th>Almacén / Distrito</th>
-                    <th>Unidad</th>
-                    <th class="text-center">Stock Disponible</th>
+                    <th>Distrito Custodio</th>
+                    <th class="text-center">Stock Actual</th>
                     <th class="text-center">Stock Mínimo</th>
                     <th class="text-center">Estado Stock</th>
                     <th class="text-center">Operaciones</th>
@@ -81,49 +64,47 @@
                         <td class="fw-bold">@r.Nombre</td>
                         <td><span class="badge bg-light text-dark border">@r.Categoria</span></td>
                         <td><span class="badge bg-secondary">@r.Distrito?.Nombre</span></td>
-                        <td>@r.UnidadMedida</td>
-                        <td class="text-center fw-bold @(esCritico ? "text-danger" : "text-success")">
-                            @r.StockDisponible.ToString("N0")
-                        </td>
-                        <td class="text-center text-muted">@r.StockMinimo.ToString("N0")</td>
+                        <td class="text-center fw-bold fs-6">@r.StockDisponible @r.UnidadMedida</td>
+                        <td class="text-center text-muted">@r.StockMinimo</td>
                         <td class="text-center">
                             @if (esCritico)
                             {
-                                <span class="badge bg-danger"><i class="bi bi-exclamation-octagon-fill"></i> CRÍTICO</span>
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill"></i> CRÍTICO</span>
                             }
                             else
                             {
-                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Abastecido</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> ÓPTIMO</span>
                             }
                         </td>
                         <td class="text-center">
-                            <div class="btn-group btn-group-sm">
-                                <a asp-action="Kardex" asp-route-id="@r.RecursoId" class="btn btn-outline-dark" title="Ver Kardex Inmutable">
-                                    <i class="bi bi-journal-text"></i> Kardex
-                                </a>
-                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalIngreso-@r.RecursoId" title="Registrar Ingreso (Compra/Donación)">
-                                    <i class="bi bi-plus-lg"></i> Ingreso
-                                </button>
-                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalReabastecer-@r.RecursoId" title="Reabastecimiento Subsidiario">
+                            <a asp-action="Kardex" asp-route-id="@r.RecursoId" class="btn btn-sm btn-outline-info py-0 px-2" title="Ver Kardex">
+                                <i class="bi bi-journal-text"></i> Kardex
+                            </a>
+                            <button class="btn btn-sm btn-outline-success py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalIngreso-@r.RecursoId" title="Registrar Entrada">
+                                <i class="bi bi-plus-lg"></i> Ingreso
+                            </button>
+                            @if (esCritico)
+                            {
+                                <button class="btn btn-sm btn-outline-danger py-0 px-2" data-bs-toggle="modal" data-bs-target="#modalReabastecer-@r.RecursoId" title="Reabastecimiento">
                                     <i class="bi bi-send"></i> Pedir
                                 </button>
-                            </div>
+                            }
                         </td>
                     </tr>
 
-                    <!-- Modal Ingreso Transaccional -->
+                    <!-- Modal Ingreso -->
                     <div class="modal fade" id="modalIngreso-@r.RecursoId" tabindex="-1">
-                        <div class="modal-dialog modal-lg modal-dialog-centered">
-                            <div class="modal-content shadow">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
                                 <form asp-action="RegistrarIngreso" method="post">
                                     <input type="hidden" name="recursoId" value="@r.RecursoId" />
                                     <div class="modal-header bg-success text-white">
-                                        <h5 class="modal-title fs-6"><i class="bi bi-box-arrow-in-down"></i> Ingreso al Almacén: @r.Nombre</h5>
+                                        <h5 class="modal-title fs-6">Ingreso a Almacén: @r.Nombre</h5>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
                                         <div class="mb-2">
-                                            <label class="form-label small fw-bold">Tipo de Operación:</label>
+                                            <label class="form-label small fw-bold">Tipo de Ingreso:</label>
                                             <select name="tipoEntrada" class="form-select form-select-sm" required>
                                                 <option value="Compra Directa Edil">Compra Directa Edil</option>
                                                 <option value="Donación">Donación Humanitaria</option>
@@ -131,24 +112,24 @@
                                             </select>
                                         </div>
                                         <div class="mb-2">
-                                            <label class="form-label small fw-bold">Cantidad a Ingresar (@r.UnidadMedida):</label>
+                                            <label class="form-label small fw-bold">Cantidad (@r.UnidadMedida):</label>
                                             <input type="number" name="cantidad" min="1" class="form-control form-control-sm" required />
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label small fw-bold">Entidad Origen / Proveedor:</label>
-                                            <input type="text" name="entidadOrigen" placeholder="Ej: INDECI, Municipalidad, Donante" class="form-control form-control-sm" required />
+                                            <input type="text" name="entidadOrigen" class="form-control form-control-sm" required />
                                         </div>
                                         <div class="mb-2">
-                                            <label class="form-label small fw-bold">Documento Sustentatorio:</label>
-                                            <input type="text" name="documento" placeholder="Ej: O/C N° 4512, Acta de Recepción" class="form-control form-control-sm" required />
+                                            <label class="form-label small fw-bold">Documento Referencia (Orden / Acta):</label>
+                                            <input type="text" name="documento" class="form-control form-control-sm" required />
                                         </div>
                                         <div class="mb-2">
-                                            <label class="form-label small fw-bold">Concepto / Glosa:</label>
-                                            <input type="text" name="concepto" placeholder="Detalle de recepción" class="form-control form-control-sm" required />
+                                            <label class="form-label small fw-bold">Concepto / Detalle:</label>
+                                            <input type="text" name="concepto" class="form-control form-control-sm" required />
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="submit" class="btn btn-success btn-sm">Confirmar e Impactar Kardex</button>
+                                        <button type="submit" class="btn btn-success btn-sm">Confirmar Ingreso en Kardex</button>
                                     </div>
                                 </form>
                             </div>
@@ -157,29 +138,29 @@
 
                     <!-- Modal Reabastecimiento Subsidiario -->
                     <div class="modal fade" id="modalReabastecer-@r.RecursoId" tabindex="-1">
-                        <div class="modal-dialog modal-lg modal-dialog-centered">
-                            <div class="modal-content shadow">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
                                 <form asp-action="SolicitarReabastecimiento" method="post">
                                     <input type="hidden" name="recursoId" value="@r.RecursoId" />
                                     <div class="modal-header bg-danger text-white">
-                                        <h5 class="modal-title fs-6"><i class="bi bi-shield-exclamation"></i> Reabastecimiento Subsidiario: @r.Nombre</h5>
+                                        <h5 class="modal-title fs-6">Solicitud Subsidiaria: @r.Nombre</h5>
                                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <div class="alert alert-warning small py-2 mb-2">
-                                            Escalamiento subsidiario: se emitirá a <strong>@(r.DistritoId == 10 ? "Región La Libertad" : "Provincia Trujillo")</strong>.
+                                        <div class="alert alert-warning small mb-2">
+                                            Al solicitar, la requisición escalará automáticamente a nivel <strong>Provincial o Regional</strong> según el canal subsidiario.
                                         </div>
                                         <div class="mb-2">
                                             <label class="form-label small fw-bold">Cantidad Requerida:</label>
                                             <input type="number" name="cantidad" min="1" class="form-control form-control-sm" required />
                                         </div>
                                         <div class="mb-2">
-                                            <label class="form-label small fw-bold">Justificación Técnica EDAN:</label>
-                                            <textarea name="justificacion" rows="3" placeholder="Motivo del déficit y afectación distrital" class="form-control form-control-sm" required></textarea>
+                                            <label class="form-label small fw-bold">Justificación Técnica de Emergencia:</label>
+                                            <textarea name="justificacion" rows="3" class="form-control form-control-sm" required></textarea>
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="submit" class="btn btn-danger btn-sm">Emitir con Alerta en Tiempo Real</button>
+                                        <button type="submit" class="btn btn-danger btn-sm">Emitir Solicitud con Alerta SignalR</button>
                                     </div>
                                 </form>
                             </div>
