@@ -18,24 +18,19 @@ namespace ResilienciaNorte.Web.Controllers
             _hubContext = hubContext;
         }
 
+        // Dashboard Provincial
         public async Task<IActionResult> Index(int? distritoId, string? estado)
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
             ViewBag.Distritos = new SelectList(distritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", distritoId);
+            ViewBag.DistritoSeleccionado = distritoId;
             ViewBag.EstadoSeleccionado = estado ?? string.Empty;
 
             var incidentes = await _incidenteService.ObtenerTodosAsync(distritoId, estado);
-            return View(incidentes ?? Enumerable.Empty<IncidenteEmergencia>());
+            return View(incidentes);
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CambiarEstado(int id, string nuevoEstado)
-        {
-            await _incidenteService.CambiarEstadoAsync(id, nuevoEstado);
-            return RedirectToAction(nameof(Index));
-        }
-
+        // Formulario Público de Alerta
         public async Task<IActionResult> Registrar()
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
@@ -47,15 +42,8 @@ namespace ResilienciaNorte.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Registrar(IncidenteEmergencia incidente)
         {
-            // 1. Ignorar campos que no provienen del formulario del usuario
             ModelState.Remove(nameof(incidente.CodigoIncidente));
             ModelState.Remove(nameof(incidente.Distrito));
-
-            // 2. Si no trae código de incidente, generarlo automáticamente
-            if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
-            {
-                incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow.Year}-{new Random().Next(1000, 9999)}";
-            }
 
             if (ModelState.IsValid)
             {
@@ -63,7 +51,7 @@ namespace ResilienciaNorte.Web.Controllers
                 var distritos = await _incidenteService.ObtenerDistritosAsync();
                 var nombreDistrito = distritos.FirstOrDefault(d => d.DistritoId == nuevo.DistritoId)?.Nombre ?? "Distrito";
 
-                // Emitir notificación en vivo por SignalR hacia el Dashboard
+                // Push SignalR en tiempo real hacia el Dashboard provincial
                 await _hubContext.Clients.All.SendAsync("NuevoIncidenteReportado", new
                 {
                     incidenteId = nuevo.IncidenteId,
@@ -79,12 +67,100 @@ namespace ResilienciaNorte.Web.Controllers
                     estado = nuevo.Estado
                 });
 
-                return RedirectToAction(nameof(Index));
+                // Redirigir al ciudadano a su comprobante con PIN generado
+                return RedirectToAction(nameof(ConfirmacionRegistro), new { codigo = nuevo.CodigoIncidente });
             }
 
             var listaDistritos = await _incidenteService.ObtenerDistritosAsync();
             ViewBag.Distritos = new SelectList(listaDistritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", incidente.DistritoId);
             return View(incidente);
+        }
+
+        public async Task<IActionResult> ConfirmacionRegistro(string codigo)
+        {
+            var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigo);
+            if (incidente == null) return RedirectToAction(nameof(Registrar));
+            return View(incidente);
+        }
+
+        // ── Portal Ciudadano: Consulta y Validación OTP ───────────────────────
+        public IActionResult Consultar()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SolicitarOtp(string codigoIncidente, string dni)
+        {
+            var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigoIncidente);
+            if (incidente == null || incidente.DniCiudadano != dni.Trim())
+            {
+                TempData["ErrorConsulta"] = "No se encontró ningún reporte con ese Código y DNI.";
+                return RedirectToAction(nameof(Consultar));
+            }
+
+            string pin = await _incidenteService.GenerarOtpCiudadanoAsync(codigoIncidente, dni, incidente.Telefono ?? "999999999");
+            TempData["PinSimulado"] = pin; // Para prueba de laboratorio se muestra el PIN en pantalla
+            TempData["CodigoIncidente"] = incidente.CodigoIncidente;
+            TempData["DniCiudadano"] = dni;
+
+            return RedirectToAction(nameof(ValidarOtp));
+        }
+
+        public IActionResult ValidarOtp()
+        {
+            if (TempData["CodigoIncidente"] == null) return RedirectToAction(nameof(Consultar));
+            ViewBag.CodigoIncidente = TempData["CodigoIncidente"]?.ToString();
+            ViewBag.DniCiudadano = TempData["DniCiudadano"]?.ToString();
+            ViewBag.PinSimulado = TempData["PinSimulado"]?.ToString();
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ValidarOtp(string codigoIncidente, string dni, string pin)
+        {
+            bool esValido = await _incidenteService.ValidarOtpCiudadanoAsync(codigoIncidente, dni, pin);
+            if (!esValido)
+            {
+                ViewBag.Error = "PIN incorrecto o expirado (recuerde que dura 30 segundos). Solicite uno nuevo.";
+                ViewBag.CodigoIncidente = codigoIncidente;
+                ViewBag.DniCiudadano = dni;
+                return View();
+            }
+
+            // OTP superado con éxito: pasar al seguimiento
+            return RedirectToAction(nameof(Seguimiento), new { codigo = codigoIncidente });
+        }
+
+        // Vista de Seguimiento Individual con Barra de Progreso Viva
+        public async Task<IActionResult> Seguimiento(string codigo)
+        {
+            var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigo);
+            if (incidente == null) return RedirectToAction(nameof(Consultar));
+            return View(incidente);
+        }
+
+        // Cambiar estado desde la consola rápida
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CambiarEstado(int id, string nuevoEstado)
+        {
+            await _incidenteService.CambiarEstadoAsync(id, nuevoEstado);
+            var inc = await _incidenteService.ObtenerPorIdAsync(id);
+
+            if (inc != null)
+            {
+                // Notificar cambio de estado a la barra de progreso del ciudadano
+                await _hubContext.Clients.All.SendAsync("EstadoIncidenteActualizado", new
+                {
+                    codigo = inc.CodigoIncidente,
+                    nuevoEstado = inc.Estado
+                });
+            }
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }
