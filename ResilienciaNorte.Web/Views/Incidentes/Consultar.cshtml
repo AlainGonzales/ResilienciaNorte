@@ -1,0 +1,39 @@
+﻿@{
+    ViewData["Title"] = "Portal Ciudadano - Consultar Emergencia";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-header bg-dark text-white text-center py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-shield-lock-fill me-2"></i> Consulta Ciudadana Segura</h5>
+                <small class="text-light">Validación con PIN OTP temporal (30 segundos)</small>
+            </div>
+            <div class="card-body p-4">
+                @if (TempData["ErrorConsulta"] != null)
+                {
+                    <div class="alert alert-danger py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["ErrorConsulta"]
+                    </div>
+                }
+
+                <form asp-action="SolicitarOtp" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Código del Incidente:</label>
+                        <input type="text" name="codigoIncidente" class="form-control font-monospace text-uppercase" placeholder="ALT-2026-XXXX" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">DNI del Informante:</label>
+                        <input type="text" name="dni" maxlength="8" class="form-control" placeholder="8 dígitos" required />
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-danger fw-bold">
+                            <i class="bi bi-key-fill me-1"></i> Generar PIN de Seguridad (OTP)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

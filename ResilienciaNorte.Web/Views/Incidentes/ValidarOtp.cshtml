@@ -1,0 +1,75 @@
+﻿@{
+    ViewData["Title"] = "Validación de Token OTP";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-header bg-danger text-white text-center py-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-stopwatch-fill me-2"></i> Verificación OTP de Seguridad</h5>
+                <small>Ingrese el código de acceso temporal</small>
+            </div>
+            <div class="card-body p-4 text-center">
+
+                @if (!string.IsNullOrEmpty(ViewBag.PinSimulado))
+                {
+                    <div class="alert alert-info py-2 mb-3">
+                        <small class="d-block fw-bold"><i class="bi bi-phone"></i> SIMULACIÓN DE SMS CIUDADANO:</small>
+                        <span class="fs-4 fw-bold font-monospace text-primary">@ViewBag.PinSimulado</span>
+                    </div>
+                }
+
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger py-2 small mb-3">
+                        @ViewBag.Error
+                    </div>
+                }
+
+                <!-- Cuenta regresiva de 30 segundos -->
+                <div class="mb-3">
+                    <span class="text-muted small d-block">Este PIN expira en:</span>
+                    <span id="temporizador" class="fs-1 fw-bold text-danger font-monospace">30</span> <span class="text-danger fw-bold">seg</span>
+                </div>
+
+                <form asp-action="ValidarOtp" method="post" id="formOtp">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="codigoIncidente" value="@ViewBag.CodigoIncidente" />
+                    <input type="hidden" name="dni" value="@ViewBag.DniCiudadano" />
+
+                    <div class="mb-3">
+                        <input type="text" name="pin" id="txtPin" maxlength="6" class="form-control form-control-lg text-center font-monospace fw-bold" placeholder="000000" autofocus required />
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" id="btnValidar" class="btn btn-danger fw-bold">Verificar y Ver Estado</button>
+                        <a asp-action="Consultar" class="btn btn-outline-secondary btn-sm">Solicitar nuevo PIN</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let segundos = 30;
+        const display = document.getElementById("temporizador");
+        const btn = document.getElementById("btnValidar");
+        const inputPin = document.getElementById("txtPin");
+
+        const intervalo = setInterval(() => {
+            segundos--;
+            display.textContent = segundos < 10 ? "0" + segundos : segundos;
+
+            if (segundos <= 0) {
+                clearInterval(intervalo);
+                display.textContent = "00";
+                btn.disabled = true;
+                inputPin.disabled = true;
+                btn.classList.replace("btn-danger", "btn-secondary");
+                btn.textContent = "PIN EXPIRADO";
+            }
+        }, 1000);
+    </script>
+}

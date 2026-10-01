@@ -1,91 +1,157 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Cryptography;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 using ResilienciaNorte.Repository;
 
-namespace ResilienciaNorte.Service;
-
-public class IncidenteService : IIncidenteService
+namespace ResilienciaNorte.Service
 {
-    private readonly ResilienciaDbContext _context;
-
-    public IncidenteService(ResilienciaDbContext context)
+    public class IncidenteService : IIncidenteService
     {
-        _context = context;
-    }
+        private readonly ResilienciaDbContext _context;
 
-    public async Task<IEnumerable<IncidenteEmergencia>> ObtenerTodosAsync(int? distritoId = null, string? estado = null)
-    {
-        var query = _context.IncidentesEmergencia
-            .Include(i => i.Distrito)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (distritoId.HasValue && distritoId.Value > 0)
+        public IncidenteService(ResilienciaDbContext context)
         {
-            query = query.Where(i => i.DistritoId == distritoId.Value);
+            _context = context;
         }
 
-        if (!string.IsNullOrWhiteSpace(estado))
+        public async Task<IEnumerable<IncidenteEmergencia>> ObtenerTodosAsync(int? distritoId, string? estado)
         {
-            query = query.Where(i => i.Estado == estado);
+            var query = _context.IncidentesEmergencia.Include(i => i.Distrito).AsQueryable();
+
+            if (distritoId.HasValue && distritoId.Value > 0)
+                query = query.Where(i => i.DistritoId == distritoId.Value);
+
+            if (!string.IsNullOrWhiteSpace(estado))
+                query = query.Where(i => i.Estado == estado);
+
+            return await query.OrderByDescending(i => i.FechaRegistro).ToListAsync();
         }
 
-        return await query.OrderByDescending(i => i.FechaRegistro).ToListAsync();
-    }
-
-    public async Task<IncidenteEmergencia?> ObtenerPorIdAsync(int id)
-    {
-        return await _context.IncidentesEmergencia
-            .Include(i => i.Distrito)
-            .FirstOrDefaultAsync(i => i.IncidenteId == id);
-    }
-
-    public async Task<IncidenteEmergencia> RegistrarIncidenteAsync(IncidenteEmergencia incidente)
-    {
-        // Generar código correlativo si no viene asignado
-        if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
+        public async Task<IncidenteEmergencia?> ObtenerPorIdAsync(int incidenteId)
         {
-            incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+            return await _context.IncidentesEmergencia
+                .Include(i => i.Distrito)
+                .FirstOrDefaultAsync(i => i.IncidenteId == incidenteId);
         }
 
-        // Regla de Negocio: Cálculo automático de Severidad según impacto inicial
-        if (incidente.FamiliasAfectadas >= 15 || (!string.IsNullOrEmpty(incidente.TipoEvento) && incidente.TipoEvento.Contains("Desborde")))
+        public async Task<IncidenteEmergencia?> ObtenerPorCodigoAsync(string codigoIncidente)
         {
-            incidente.Severidad = "Crítico";
-        }
-        else if (incidente.FamiliasAfectadas >= 6)
-        {
-            incidente.Severidad = "Grave";
-        }
-        else
-        {
-            incidente.Severidad = "Moderado";
+            return await _context.IncidentesEmergencia
+                .Include(i => i.Distrito)
+                .FirstOrDefaultAsync(i => i.CodigoIncidente == codigoIncidente.Trim().ToUpper());
         }
 
-        incidente.FechaRegistro = DateTime.UtcNow;
-        incidente.Estado = "Reportado";
+        public async Task<IEnumerable<Distrito>> ObtenerDistritosAsync()
+        {
+            return await _context.Distritos.Where(d => d.Activo).OrderBy(d => d.Nombre).ToListAsync();
+        }
 
-        _context.IncidentesEmergencia.Add(incidente);
-        await _context.SaveChangesAsync();
-        return incidente;
-    }
+        public async Task<IncidenteEmergencia> RegistrarIncidenteAsync(IncidenteEmergencia incidente)
+        {
+            // 1. Generar código correlativo seguro ALT-2026-XXXX si no viene
+            if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
+            {
+                int totalHoy = await _context.IncidentesEmergencia.CountAsync() + 1;
+                incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow.Year}-{totalHoy:D4}";
+            }
 
-    public async Task<bool> CambiarEstadoAsync(int id, string nuevoEstado)
-    {
-        var incidente = await _context.IncidentesEmergencia.FindAsync(id);
-        if (incidente == null) return false;
+            incidente.FechaRegistro = DateTime.UtcNow;
+            incidente.Estado = "Reportado";
 
-        incidente.Estado = nuevoEstado;
-        await _context.SaveChangesAsync();
-        return true;
-    }
+            _context.IncidentesEmergencia.Add(incidente);
+            await _context.SaveChangesAsync();
+            return incidente;
+        }
 
-    public async Task<IEnumerable<Distrito>> ObtenerDistritosAsync()
-    {
-        return await _context.Distritos
-            .Where(d => d.Activo)
-            .OrderBy(d => d.Nombre)
-            .AsNoTracking()
-            .ToListAsync();
+        public async Task<bool> CambiarEstadoAsync(int incidenteId, string nuevoEstado)
+        {
+            var incidente = await _context.IncidentesEmergencia.FindAsync(incidenteId);
+            if (incidente == null) return false;
+
+            incidente.Estado = nuevoEstado;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ── 2. Generación OTP de 30 Segundos con Hash SHA-256 ─────────────────
+        public async Task<string> GenerarOtpCiudadanoAsync(string codigoIncidente, string dni, string telefono)
+        {
+            // Generar PIN aleatorio de 6 dígitos
+            string pin = new Random().Next(100000, 999999).ToString();
+            string pinHash = HashString(pin);
+
+            // Invalidar tokens previos del mismo incidente
+            var tokensPrevios = await _context.VerificacionesOtpCiudadano
+                .Where(v => v.CodigoIncidente == codigoIncidente && !v.FueUtilizado)
+                .ToListAsync();
+
+            foreach (var t in tokensPrevios)
+            {
+                t.FueUtilizado = true;
+            }
+
+            var otp = new VerificacionOtpCiudadano
+            {
+                CodigoIncidente = codigoIncidente.Trim().ToUpper(),
+                DniCiudadano = dni.Trim(),
+                Telefono = telefono.Trim(),
+                PinHash = pinHash,
+                FechaCreacion = DateTime.UtcNow,
+                FechaExpiracion = DateTime.UtcNow.AddSeconds(30), // Ventana estricta de 30 segundos
+                IntentosFallidos = 0,
+                FueUtilizado = false
+            };
+
+            _context.VerificacionesOtpCiudadano.Add(otp);
+            await _context.SaveChangesAsync();
+
+            return pin; // Retorna el PIN en claro para simular el SMS o mostrarlo en pantalla
+        }
+
+        // ── 3. Validación de Token OTP ───────────────────────────────────────
+        public async Task<bool> ValidarOtpCiudadanoAsync(string codigoIncidente, string dni, string pinIngresado)
+        {
+            string hashIngresado = HashString(pinIngresado.Trim());
+            var ahora = DateTime.UtcNow;
+
+            var otp = await _context.VerificacionesOtpCiudadano
+                .Where(v => v.CodigoIncidente == codigoIncidente.Trim().ToUpper() && v.DniCiudadano == dni.Trim() && !v.FueUtilizado)
+                .OrderByDescending(v => v.FechaCreacion)
+                .FirstOrDefaultAsync();
+
+            if (otp == null) return false;
+
+            // Verificar si expiró (más de 30 segundos)
+            if (ahora > otp.FechaExpiracion)
+            {
+                otp.FueUtilizado = true;
+                await _context.SaveChangesAsync();
+                return false;
+            }
+
+            if (otp.PinHash != hashIngresado)
+            {
+                otp.IntentosFallidos++;
+                if (otp.IntentosFallidos >= 3)
+                {
+                    otp.FueUtilizado = true; // Bloqueo tras 3 fallos
+                }
+                await _context.SaveChangesAsync();
+                return false;
+            }
+
+            // Consumir el token
+            otp.FueUtilizado = true;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private static string HashString(string input)
+        {
+            using var sha256 = SHA256.Create();
+            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(bytes);
+        }
     }
 }

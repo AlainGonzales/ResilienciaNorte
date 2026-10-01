@@ -1,0 +1,140 @@
+﻿@model ResilienciaNorte.Domain.IncidenteEmergencia
+@{
+    ViewData["Title"] = $"Seguimiento {Model.CodigoIncidente}";
+    
+    // Mapeo del porcentaje y paso según el estado
+    int porcentaje = Model.Estado switch
+    {
+        "Reportado" => 25,
+        "Constatado" => 50,
+        "En Atención" => 75,
+        "Atendido" => 100,
+        "Desestimado" => 100,
+        _ => 25
+    };
+    string colorBarra = Model.Estado == "Desestimado" ? "bg-secondary" : "bg-danger";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow border-0 mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <div>
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-activity text-danger"></i> Monitoreo Individual de Emergencia</h5>
+                    <span class="font-monospace text-warning fw-bold">@Model.CodigoIncidente</span>
+                </div>
+                <span class="badge @(Model.Estado == "Reportado" ? "bg-warning text-dark" : "bg-success") fs-6" id="badgeEstado">
+                    @Model.Estado
+                </span>
+            </div>
+
+            <div class="card-body p-4">
+                <!-- Barra de Progreso Reactiva -->
+                <h6 class="fw-bold text-secondary mb-3">Progreso de la Atención Oficial:</h6>
+                <div class="progress mb-4" style="height: 25px;">
+                    <div id="barraProgreso" class="progress-bar progress-bar-striped progress-bar-animated @colorBarra fw-bold" role="progressbar" style="width: @porcentaje%;">
+                        @porcentaje%
+                    </div>
+                </div>
+
+                <!-- Pasos del Flujo EDAN -->
+                <div class="row text-center mb-4 g-2">
+                    <div class="col-3">
+                        <div class="p-2 border rounded @(porcentaje >= 25 ? "border-danger bg-light fw-bold text-danger" : "text-muted")" id="pasoReportado">
+                            <i class="bi bi-file-earmark-text d-block fs-4"></i> 1. Reportado
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 border rounded @(porcentaje >= 50 ? "border-danger bg-light fw-bold text-danger" : "text-muted")" id="pasoConstatado">
+                            <i class="bi bi-clipboard-check d-block fs-4"></i> 2. Constatado
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 border rounded @(porcentaje >= 75 ? "border-danger bg-light fw-bold text-danger" : "text-muted")" id="pasoAtencion">
+                            <i class="bi bi-truck d-block fs-4"></i> 3. En Atención
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="p-2 border rounded @(porcentaje >= 100 ? "border-success bg-light fw-bold text-success" : "text-muted")" id="pasoAtendido">
+                            <i class="bi bi-check2-all d-block fs-4"></i> 4. Atendido
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ficha Técnica del Incidente -->
+                <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">Detalle del Reporte</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <span class="text-muted small d-block">Distrito:</span>
+                        <strong class="text-dark">@Model.Distrito?.Nombre</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <span class="text-muted small d-block">Sector Crítico:</span>
+                        <strong class="text-dark">@Model.SectorCritico</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <span class="text-muted small d-block">Tipo de Evento:</span>
+                        <strong class="text-dark">@Model.TipoEvento</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <span class="text-muted small d-block">Familias Afectadas:</span>
+                        <strong class="text-danger">@Model.FamiliasAfectadas</strong>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-muted small d-block">Ubicación / Referencia:</span>
+                        <span class="text-dark">@(Model.DireccionReferencia ?? "Sin referencia")</span>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-muted small d-block">Descripción Ciudadana:</span>
+                        <p class="mb-0 text-muted fst-italic">"@Model.Descripcion"</p>
+                    </div>
+                </div>
+
+                <hr />
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Consultar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Otra Consulta</a>
+                    <a asp-action="Index" class="btn btn-outline-dark btn-sm"><i class="bi bi-speedometer2"></i> Monitoreo Provincial</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const codigoActual = "@Model.CodigoIncidente";
+
+        const conexionSeguimiento = new signalR.HubConnectionBuilder()
+            .withUrl("/emergenciaHub")
+            .withAutomaticReconnect()
+            .build();
+
+        conexionSeguimiento.on("EstadoIncidenteActualizado", function (data) {
+            if (data.codigo === codigoActual) {
+                const nuevoEstado = data.nuevoEstado;
+                document.getElementById("badgeEstado").textContent = nuevoEstado;
+
+                let porcentaje = 25;
+                if (nuevoEstado === "Constatado") porcentaje = 50;
+                else if (nuevoEstado === "En Atención") porcentaje = 75;
+                else if (nuevoEstado === "Atendido" || nuevoEstado === "Desestimado") porcentaje = 100;
+
+                const barra = document.getElementById("barraProgreso");
+                barra.style.width = porcentaje + "%";
+                barra.textContent = porcentaje + "%";
+
+                if (nuevoEstado === "Desestimado") {
+                    barra.classList.replace("bg-danger", "bg-secondary");
+                }
+
+                // Actualizar resaltado de los pasos
+                if (porcentaje >= 50) document.getElementById("pasoConstatado").classList.add("border-danger", "bg-light", "fw-bold", "text-danger");
+                if (porcentaje >= 75) document.getElementById("pasoAtencion").classList.add("border-danger", "bg-light", "fw-bold", "text-danger");
+                if (porcentaje >= 100) document.getElementById("pasoAtendido").classList.add("border-success", "bg-light", "fw-bold", "text-success");
+            }
+        });
+
+        conexionSeguimiento.start().catch(err => console.error("Error al conectar SignalR en Seguimiento:", err));
+    </script>
+}
