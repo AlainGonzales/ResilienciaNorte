@@ -1,0 +1,19 @@
+@model string
+@switch (Model)
+{
+    case "Aprobada":
+        <span class="badge bg-primary"><i class="bi bi-patch-check"></i> Aprobada</span>
+        break;
+    case "EnDespacho":
+        <span class="badge bg-warning text-dark"><i class="bi bi-truck"></i> En despacho</span>
+        break;
+    case "Entregado":
+        <span class="badge bg-success"><i class="bi bi-check2-all"></i> Entregado</span>
+        break;
+    case "Anulado":
+        <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Anulado</span>
+        break;
+    default:
+        <span class="badge bg-light text-dark border">@Model</span>
+        break;
+}

@@ -363,7 +363,9 @@
                                     }
                                     else if (item.Estado == "Constatado")
                                     {
-                                        <span class="text-muted small"><i class="bi bi-arrow-right-circle"></i> Listo</span>
+                                        <a asp-controller="Ordenes" asp-action="Crear" asp-route-incidenteId="@item.IncidenteId" class="btn btn-sm btn-outline-primary py-0 px-2" title="Asignar bienes BAH">
+                                            <i class="bi bi-box-seam"></i> Asignar
+                                        </a>
                                     }
                                     else if (item.Estado == "Atendido")
                                     {
@@ -375,7 +377,7 @@
                                     }
                                     else
                                     {
-                                        <span class="badge bg-light text-dark border">En proceso</span>
+                                        <a asp-controller="Ordenes" asp-action="PorIncidente" asp-route-id="@item.IncidenteId" class="badge bg-light text-dark border text-decoration-none" title="Ver orden de atención">En proceso</a>
                                     }
                                 </td>
                             </tr>

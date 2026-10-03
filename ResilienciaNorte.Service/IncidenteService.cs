@@ -3,16 +3,19 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 using ResilienciaNorte.Repository;
+using ResilienciaNorte.Service.Strategies;
 
 namespace ResilienciaNorte.Service
 {
     public class IncidenteService : IIncidenteService
     {
         private readonly ResilienciaDbContext _context;
+        private readonly IClasificadorSeveridad _clasificadorSeveridad;
 
-        public IncidenteService(ResilienciaDbContext context)
+        public IncidenteService(ResilienciaDbContext context, IClasificadorSeveridad clasificadorSeveridad)
         {
             _context = context;
+            _clasificadorSeveridad = clasificadorSeveridad;
         }
 
         public async Task<IEnumerable<IncidenteEmergencia>> ObtenerTodosAsync(int? distritoId, string? estado)
@@ -57,7 +60,10 @@ namespace ResilienciaNorte.Service
             }
 
             incidente.FechaRegistro = DateTime.UtcNow;
-            incidente.Estado = "Reportado";
+            incidente.Estado = EstadoIncidente.Reportado;
+
+            // Priorización automática (patrón Strategy): familias afectadas + quebrada
+            incidente.Severidad = _clasificadorSeveridad.Clasificar(incidente).Etiqueta;
 
             _context.IncidentesEmergencia.Add(incidente);
             await _context.SaveChangesAsync();

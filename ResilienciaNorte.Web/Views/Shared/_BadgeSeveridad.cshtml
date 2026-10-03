@@ -1,0 +1,16 @@
+@model string?
+@{
+    var nivel = ResilienciaNorte.Domain.NivelSeveridadExtensions.DesdeEtiqueta(Model);
+}
+@switch (nivel)
+{
+    case ResilienciaNorte.Domain.NivelSeveridad.Critico:
+        <span class="badge badge-critico px-2 py-1"><i class="bi bi-exclamation-octagon-fill"></i> Crítico</span>
+        break;
+    case ResilienciaNorte.Domain.NivelSeveridad.Grave:
+        <span class="badge badge-alto px-2 py-1"><i class="bi bi-exclamation-triangle-fill"></i> Grave</span>
+        break;
+    default:
+        <span class="badge badge-moderado px-2 py-1">Moderado</span>
+        break;
+}
