@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 
@@ -6,6 +7,166 @@ namespace ResilienciaNorte.Repository
 {
     public static class DataSeeder
     {
+        // ── 0. Sembrado Asíncrono de Roles e Identidades ──
+        public static async Task InicializarRolesYUsuariosAsync(
+            RoleManager<IdentityRole> roleManager,
+            UserManager<UsuarioAplicacion> userManager)
+        {
+            // Catálogo Oficial de Roles
+            string[] roles = new[]
+            {
+                "Administrador",
+                "Coordinador",
+                "Analista",
+                "OperadorCOEP",
+                "LogisticoAlmacen",
+                "EvaluadorCampo",
+                "Ciudadano"
+            };
+
+            foreach (var rol in roles)
+            {
+                if (!await roleManager.RoleExistsAsync(rol))
+                {
+                    await roleManager.CreateAsync(new IdentityRole(rol));
+                }
+            }
+
+            // 1. Coordinador Provincial (COEP Trujillo)
+            string coordProvEmail = "coordinador.provincial@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(coordProvEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = coordProvEmail,
+                    Email = coordProvEmail,
+                    Dni = "10000001",
+                    NombreCompleto = "Ing. Coordinador COEP Trujillo",
+                    NivelJurisdiccion = "Provincial",
+                    DistritoId = 10, // Trujillo Centro
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Coordinador");
+                }
+            }
+
+            // 2. Coordinador Distrital (COEL El Porvenir)
+            string coordDistEmail = "coordinador.elporvenir@coel.gob.pe";
+            if (await userManager.FindByEmailAsync(coordDistEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = coordDistEmail,
+                    Email = coordDistEmail,
+                    Dni = "10000002",
+                    NombreCompleto = "Coordinador COEL El Porvenir",
+                    NivelJurisdiccion = "Distrital",
+                    DistritoId = 1, // El Porvenir
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Coordinador");
+                }
+            }
+
+            // 3. Analista Regional (COER La Libertad)
+            string analistaRegEmail = "analista.regional@coer.gob.pe";
+            if (await userManager.FindByEmailAsync(analistaRegEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = analistaRegEmail,
+                    Email = analistaRegEmail,
+                    Dni = "10000003",
+                    NombreCompleto = "Especialista EDAN COER La Libertad",
+                    NivelJurisdiccion = "Regional",
+                    DistritoId = 10,
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Analista2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Analista");
+                }
+            }
+
+            // 4. Analista Distrital (Monitoreo de Quebradas)
+            string analistaDistEmail = "analista.huanchaco@coel.gob.pe";
+            if (await userManager.FindByEmailAsync(analistaDistEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = analistaDistEmail,
+                    Email = analistaDistEmail,
+                    Dni = "10000004",
+                    NombreCompleto = "Analista de Riesgo Huanchaco",
+                    NivelJurisdiccion = "Distrital",
+                    DistritoId = 3, // Huanchaco
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Analista2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Analista");
+                }
+            }
+
+            // 5. Administrador General del Sistema
+            string adminEmail = "admin@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(adminEmail) == null)
+            {
+                var adminUser = new UsuarioAplicacion
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    Dni = "00000001",
+                    NombreCompleto = "Administrador Provincial COEP",
+                    NivelJurisdiccion = "Provincial",
+                    DistritoId = 10,
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(adminUser, "Admin2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(adminUser, "Administrador");
+                }
+            }
+
+            // 6. Evaluador de Campo (Brigadista EDAN Terreno)
+            string evaluadorEmail = "evaluador.campo@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(evaluadorEmail) == null)
+            {
+                var evaluadorUser = new UsuarioAplicacion
+                {
+                    UserName = evaluadorEmail,
+                    Email = evaluadorEmail,
+                    Dni = "10000005",
+                    NombreCompleto = "Brigadista Técnico EDAN",
+                    NivelJurisdiccion = "Distrital",
+                    DistritoId = 1, // El Porvenir
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+
+                var resultado = await userManager.CreateAsync(evaluadorUser, "Evaluador2026*");
+                if (resultado.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(evaluadorUser, "EvaluadorCampo");
+                }
+            }
+        }
+
         public static void SeedData(this ModelBuilder modelBuilder)
         {
             // ── 1. Catálogo Territorial - 11 Distritos Oficiales de la Provincia de Trujillo ──

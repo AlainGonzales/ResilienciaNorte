@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
 using ResilienciaNorte.Domain;
@@ -18,7 +19,8 @@ namespace ResilienciaNorte.Web.Controllers
             _hubContext = hubContext;
         }
 
-        // Dashboard Provincial
+        // 1. Dashboard Provincial: Solo para funcionarios autenticados
+        [Authorize]
         public async Task<IActionResult> Index(int? distritoId, string? estado)
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
@@ -30,7 +32,8 @@ namespace ResilienciaNorte.Web.Controllers
             return View(incidentes);
         }
 
-        // Formulario Público de Alerta
+        // 2. Formulario Público de Alerta (Acceso Ciudadano Anónimo)
+        [AllowAnonymous]
         public async Task<IActionResult> Registrar()
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
@@ -39,6 +42,7 @@ namespace ResilienciaNorte.Web.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Registrar(IncidenteEmergencia incidente)
         {
@@ -76,6 +80,7 @@ namespace ResilienciaNorte.Web.Controllers
             return View(incidente);
         }
 
+        [AllowAnonymous]
         public async Task<IActionResult> ConfirmacionRegistro(string codigo)
         {
             var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigo);
@@ -84,12 +89,14 @@ namespace ResilienciaNorte.Web.Controllers
         }
 
         // ── Portal Ciudadano: Consulta y Validación OTP ───────────────────────
+        [AllowAnonymous]
         public IActionResult Consultar()
         {
             return View();
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SolicitarOtp(string codigoIncidente, string dni)
         {
@@ -101,13 +108,14 @@ namespace ResilienciaNorte.Web.Controllers
             }
 
             string pin = await _incidenteService.GenerarOtpCiudadanoAsync(codigoIncidente, dni, incidente.Telefono ?? "999999999");
-            TempData["PinSimulado"] = pin; // Para prueba de laboratorio se muestra el PIN en pantalla
+            TempData["PinSimulado"] = pin;
             TempData["CodigoIncidente"] = incidente.CodigoIncidente;
             TempData["DniCiudadano"] = dni;
 
             return RedirectToAction(nameof(ValidarOtp));
         }
 
+        [AllowAnonymous]
         public IActionResult ValidarOtp()
         {
             if (TempData["CodigoIncidente"] == null) return RedirectToAction(nameof(Consultar));
@@ -118,6 +126,7 @@ namespace ResilienciaNorte.Web.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ValidarOtp(string codigoIncidente, string dni, string pin)
         {
@@ -130,11 +139,10 @@ namespace ResilienciaNorte.Web.Controllers
                 return View();
             }
 
-            // OTP superado con éxito: pasar al seguimiento
             return RedirectToAction(nameof(Seguimiento), new { codigo = codigoIncidente });
         }
 
-        // Vista de Seguimiento Individual con Barra de Progreso Viva
+        [AllowAnonymous]
         public async Task<IActionResult> Seguimiento(string codigo)
         {
             var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigo);
@@ -142,8 +150,9 @@ namespace ResilienciaNorte.Web.Controllers
             return View(incidente);
         }
 
-        // Cambiar estado desde la consola rápida
+        // 3. Operación de cambio de estado: Exclusivo para funcionarios autenticados
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CambiarEstado(int id, string nuevoEstado)
         {
@@ -152,7 +161,6 @@ namespace ResilienciaNorte.Web.Controllers
 
             if (inc != null)
             {
-                // Notificar cambio de estado a la barra de progreso del ciudadano
                 await _hubContext.Clients.All.SendAsync("EstadoIncidenteActualizado", new
                 {
                     codigo = inc.CodigoIncidente,

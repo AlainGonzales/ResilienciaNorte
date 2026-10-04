@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 
 namespace ResilienciaNorte.Repository
 {
-    public class ResilienciaDbContext : DbContext
+    public class ResilienciaDbContext : IdentityDbContext<UsuarioAplicacion>
     {
         public ResilienciaDbContext(DbContextOptions<ResilienciaDbContext> options) : base(options)
         {
@@ -22,7 +23,17 @@ namespace ResilienciaNorte.Repository
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // CRUCIAL: base.OnModelCreating configura las llaves y tablas de AspNetUsers/AspNetRoles
             base.OnModelCreating(modelBuilder);
+
+            // Configuración de la relación Usuario -> Distrito (Jurisdicción)
+            modelBuilder.Entity<UsuarioAplicacion>(entity =>
+            {
+                entity.HasOne(u => u.Distrito)
+                      .WithMany()
+                      .HasForeignKey(u => u.DistritoId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // ── Restricciones e Índices Únicos ────────────────────────────────
             modelBuilder.Entity<IncidenteEmergencia>(entity =>

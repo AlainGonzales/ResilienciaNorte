@@ -113,7 +113,7 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancelar</a>
                         <button type="submit" class="btn btn-danger px-4 fw-bold">
                             <i class="bi bi-send-fill me-1"></i> Registrar Alerta
                         </button>
@@ -128,27 +128,22 @@
     <script>
         // ── 1. Validaciones de Entrada en Vivo ─────────────────────────────────────
 
-        // Bloquear todo carácter que no sea dígito (0-9) en DNI y Teléfono
         document.querySelectorAll(".solo-numeros").forEach(input => {
             input.addEventListener("keydown", function (e) {
-                // Permitir teclas de control: retroceso, tab, flechas, suprimir
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter'].includes(e.key) ||
                     (e.ctrlKey === true && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase()))) {
                     return;
                 }
-                // Si la tecla presionada no es un número, bloquear el evento
                 if (!/^[0-9]$/.test(e.key)) {
                     e.preventDefault();
                 }
             });
 
-            // Limpieza reactiva ante eventos de pegar (Paste)
             input.addEventListener("input", function () {
                 this.value = this.value.replace(/[^0-9]/g, '');
             });
         });
 
-        // Bloquear caracteres no numéricos o signos negativos en Familias Afectadas
         document.querySelectorAll(".solo-numeros-positivos").forEach(input => {
             input.addEventListener("keydown", function (e) {
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter'].includes(e.key) ||
@@ -165,14 +160,12 @@
             });
         });
 
-        // Solo letras y espacios en Nombre Completo (permite acentos y ñ)
         document.querySelectorAll(".solo-letras").forEach(input => {
             input.addEventListener("keydown", function (e) {
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter', ' '].includes(e.key) ||
                     (e.ctrlKey === true && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase()))) {
                     return;
                 }
-                // Expresión regular para letras mayúsculas, minúsculas, tildes y ñ
                 if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]$/.test(e.key)) {
                     e.preventDefault();
                 }
