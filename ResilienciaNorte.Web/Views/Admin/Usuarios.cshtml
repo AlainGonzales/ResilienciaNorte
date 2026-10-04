@@ -1,0 +1,147 @@
+﻿@model IEnumerable<ResilienciaNorte.Web.Controllers.UsuarioGestionViewModel>
+@{
+    ViewData["Title"] = "Control de Usuarios y Permisos";
+    var distritos = ViewBag.Distritos as List<ResilienciaNorte.Domain.Distrito> ?? new();
+    var roles = ViewBag.RolesDisponibles as List<string> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-shield-lock-fill text-danger me-2"></i> Control de Usuarios y Seguridad RBAC
+        </h3>
+        <p class="text-muted small mb-0">Gestión de identidades, elevación de privilegios y asignación de jurisdicción operativa</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Auditoria" class="btn btn-outline-dark btn-sm fw-semibold">
+            <i class="bi bi-shield-check me-1"></i> Ver Bitácora de Auditoría
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-people-fill text-warning me-2"></i> Padrón Oficial de Usuarios Registrados</h6>
+        <span class="badge bg-danger">@Model.Count() Cuentas</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small">
+                <tr>
+                    <th>Usuario / Informante</th>
+                    <th>Correo Electrónico</th>
+                    <th>Rol Asignado</th>
+                    <th>Nivel Jurisdiccional</th>
+                    <th>Distrito / Sede</th>
+                    <th>Estado</th>
+                    <th class="text-center">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">@u.NombreCompleto</div>
+                            <span class="badge bg-secondary font-monospace">DNI: @u.Dni</span>
+                        </td>
+                        <td class="small text-muted">@u.Email</td>
+                        <td>
+                            @switch (u.RolActual)
+                            {
+                                case "Administrador":
+                                    <span class="badge bg-danger px-2 py-1">Administrador</span>
+                                    break;
+                                case "Coordinador":
+                                    <span class="badge bg-primary px-2 py-1">Coordinador</span>
+                                    break;
+                                case "Analista":
+                                    <span class="badge bg-info text-dark px-2 py-1">Analista</span>
+                                    break;
+                                case "LogisticoAlmacen":
+                                    <span class="badge bg-success px-2 py-1">Logístico BAH</span>
+                                    break;
+                                case "EvaluadorCampo":
+                                    <span class="badge bg-warning text-dark px-2 py-1">Evaluador Campo</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-light text-dark border px-2 py-1">Ciudadano</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            <span class="badge bg-dark">@u.NivelJurisdiccion</span>
+                        </td>
+                        <td class="small">
+                            @(string.IsNullOrEmpty(u.DistritoNombre) ? "Provincial / Todas" : u.DistritoNombre)
+                        </td>
+                        <td>
+                            @if (u.Activo)
+                            {
+                                <span class="badge bg-success bg-opacity-75">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Inactivo</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEditar-@u.Id">
+                                <i class="bi bi-pencil-square me-1"></i> Asignar Rol
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- MODAL PARA ELEVAR DE CIUDADANO A FUNCIONARIO Y FIJAR JURISDICCIÓN -->
+                    <div class="modal fade" id="modalEditar-@u.Id" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content shadow border-0">
+                                <form asp-action="ActualizarPermisos" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="usuarioId" value="@u.Id" />
+                                    <div class="modal-header bg-dark text-white py-2">
+                                        <h6 class="modal-title">Modificar Permisos: @u.NombreCompleto</h6>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-4 text-start">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Asignar Rol:</label>
+                                            <select name="nuevoRol" class="form-select form-select-sm">
+                                                @foreach (var r in roles)
+                                                {
+                                                    <!option value="@r" @(r == u.RolActual ? "selected" : "")>@r</!option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Nivel Jurisdiccional:</label>
+                                            <select name="nivel" class="form-select form-select-sm">
+                                                <!option value="Distrital" @(u.NivelJurisdiccion == "Distrital" ? "selected" : "")>Distrital</!option>
+                                                <!option value="Provincial" @(u.NivelJurisdiccion == "Provincial" ? "selected" : "")>Provincial (COEP)</!option>
+                                                <!option value="Regional" @(u.NivelJurisdiccion == "Regional" ? "selected" : "")>Regional (COER)</!option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold">Distrito Asignado (si es Distrital):</label>
+                                            <select name="distritoId" class="form-select form-select-sm">
+                                                <option value="">-- No aplica / Provincial o Regional --</option>
+                                                @foreach (var d in distritos)
+                                                {
+                                                    <option value="@d.DistritoId">@d.Nombre</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light py-2">
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-danger btn-sm fw-bold">Guardar Cambios</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

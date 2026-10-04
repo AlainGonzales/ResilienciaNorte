@@ -21,18 +21,34 @@ namespace ResilienciaNorte.Web.Controllers
         {
             if (User.Identity != null && User.Identity.IsAuthenticated)
             {
+                // Si es Administrador, su pantalla principal nativa es Control de Usuarios
+                if (User.IsInRole("Administrador"))
+                {
+                    return RedirectToAction("Usuarios", "Admin");
+                }
+
                 var usuario = await _userManager.GetUserAsync(User);
+                ViewBag.UsuarioActual = usuario;
+
                 if (usuario != null)
                 {
-                    // Si el usuario registrado consulta, recuperamos todas sus alertas por DNI
-                    var misReportes = await _context.IncidentesEmergencia
-                        .Include(i => i.Distrito)
-                        .Where(i => i.DniCiudadano == usuario.Dni)
-                        .OrderByDescending(i => i.FechaRegistro)
-                        .ToListAsync();
+                    var roles = await _userManager.GetRolesAsync(usuario);
+                    string rolPrincipal = roles.FirstOrDefault() ?? "Ciudadano";
+                    ViewBag.RolPrincipal = rolPrincipal;
 
-                    ViewBag.MisReportes = misReportes;
-                    ViewBag.UsuarioActual = usuario;
+                    // Funcionarios operativos (Coordinador, Analista, Logístico)
+                    if (rolPrincipal != "Ciudadano")
+                    {
+                        ViewBag.TotalAlertas = await _context.IncidentesEmergencia.CountAsync();
+                        ViewBag.AlertasCriticas = await _context.IncidentesEmergencia.CountAsync(i => i.Severidad == "Crítico" || i.Severidad == "Crítica");
+                        ViewBag.FamiliasImpactadas = await _context.IncidentesEmergencia.SumAsync(i => (int?)i.FamiliasAfectadas) ?? 0;
+                        ViewBag.TotalBienesBAH = await _context.RecursosAlmacen.SumAsync(r => (int?)r.StockDisponible) ?? 0;
+                        ViewBag.UltimosIncidentes = await _context.IncidentesEmergencia
+                            .Include(i => i.Distrito)
+                            .OrderByDescending(i => i.FechaRegistro)
+                            .Take(6)
+                            .ToListAsync();
+                    }
                 }
             }
 

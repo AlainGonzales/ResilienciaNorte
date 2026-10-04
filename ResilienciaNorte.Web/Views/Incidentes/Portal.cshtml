@@ -1,0 +1,143 @@
+﻿@{
+    ViewData["Title"] = "Portal de Alertas y Emergencias";
+    bool estaLogueado = User.Identity != null && User.Identity.IsAuthenticated;
+    var misReportes = ViewBag.MisReportes as IEnumerable<ResilienciaNorte.Domain.IncidenteEmergencia>;
+    var usuario = ViewBag.UsuarioActual as ResilienciaNorte.Domain.UsuarioAplicacion;
+}
+
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold text-dark"><i class="bi bi-shield-check text-danger"></i> Módulo de Reportes de Emergencia</h2>
+        <p class="text-muted">Centro de Operaciones de Emergencia Provincial - Trujillo</p>
+    </div>
+
+    @if (!estaLogueado)
+    {
+        <!-- FLUJO PARA CIUDADANO NO LOGUEADO: 2 OPCIONES CLARAS -->
+        <div class="row g-4 justify-content-center">
+            <div class="col-md-5">
+                <div class="card h-100 shadow-sm border-0 text-center p-4">
+                    <div class="card-body">
+                        <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 d-inline-block mb-3 fs-1">
+                            <i class="bi bi-megaphone-fill"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark">Reportar Emergencia Ahora</h4>
+                        <p class="text-muted small mb-4">
+                            Emita un aviso urgente por desborde o aniego en su distrito. Se registrará con coordenadas GPS y se le otorgará un código correlativo oficial.
+                        </p>
+                        <a asp-action="Registrar" class="btn btn-danger btn-lg w-100 fw-bold shadow-sm">
+                            Iniciar Reporte Civil
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card h-100 shadow-sm border-0 text-center p-4">
+                    <div class="card-body">
+                        <div class="bg-dark bg-opacity-10 text-dark rounded-circle p-3 d-inline-block mb-3 fs-1">
+                            <i class="bi bi-search"></i>
+                        </div>
+                        <h4 class="fw-bold text-dark">Consultar Estado de Mi Alerta</h4>
+                        <p class="text-muted small mb-4">
+                            Si ya cuenta con un código (ALT-2026-XXXX) y no tiene cuenta, ingrese su DNI y genere un PIN OTP temporal para verificar el avance del auxilio.
+                        </p>
+                        <button type="button" class="btn btn-outline-dark btn-lg w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalBuscarReporte">
+                            Verificar con PIN OTP
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- FLUJO PARA CIUDADANO LOGUEADO: BANDEJA COMPLETA DE SUS REPORTES -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-folder2-open text-warning me-2"></i> Mis Alertas Registradas (DNI: @usuario?.Dni)
+                </h5>
+                <a asp-action="Registrar" class="btn btn-danger btn-sm fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> Nueva Emergencia
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>Código</th>
+                            <th>Tipo de Evento</th>
+                            <th>Sector / Quebrada</th>
+                            <th>Fecha</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (misReportes == null || !misReportes.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+                                    No se encontraron alertas emitidas bajo su número de DNI.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in misReportes)
+                            {
+                                <tr>
+                                    <td class="font-monospace fw-bold text-danger">@item.CodigoIncidente</td>
+                                    <td class="fw-bold">@item.TipoEvento</td>
+                                    <td>@item.SectorCritico</td>
+                                    <td class="small">@item.FechaRegistro.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="text-center">
+                                        <span class="badge @(item.Estado == "Reportado" ? "bg-warning text-dark" : "bg-success")">
+                                            @item.Estado
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a asp-action="Seguimiento" asp-route-codigo="@item.CodigoIncidente" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-activity"></i> Ver Estado en Vivo
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- MODAL BÚSQUEDA OTP -->
+<div class="modal fade" id="modalBuscarReporte" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <form asp-controller="Incidentes" asp-action="SolicitarOtp" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header bg-dark text-white py-3">
+                    <h5 class="modal-title fs-6 fw-bold">Consultar Estado de Mi Reporte</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Código de Alerta *</label>
+                        <input type="text" name="codigoIncidente" class="form-control font-monospace" placeholder="ALT-2026-XXXX" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">DNI del Informante *</label>
+                        <input type="text" name="dni" maxlength="8" class="form-control" placeholder="43243516" required />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-3 fw-bold">Validar PIN OTP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

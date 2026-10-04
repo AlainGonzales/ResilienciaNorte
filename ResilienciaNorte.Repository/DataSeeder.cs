@@ -32,73 +32,29 @@ namespace ResilienciaNorte.Repository
                 }
             }
 
-            // 1. Coordinador Provincial (COEP Trujillo)
-            string coordProvEmail = "coordinador.provincial@coep.gob.pe";
-            if (await userManager.FindByEmailAsync(coordProvEmail) == null)
+            // 1. Administrador General del Sistema
+            string adminEmail = "admin@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(adminEmail) == null)
             {
-                var user = new UsuarioAplicacion
+                var adminUser = new UsuarioAplicacion
                 {
-                    UserName = coordProvEmail,
-                    Email = coordProvEmail,
-                    Dni = "10000001",
-                    NombreCompleto = "Ing. Coordinador COEP Trujillo",
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    Dni = "00000001",
+                    NombreCompleto = "Administrador Provincial COEP",
                     NivelJurisdiccion = "Provincial",
-                    DistritoId = 10, // Trujillo Centro
-                    Activo = true,
-                    EmailConfirmed = true,
-                    FechaRegistro = DateTime.UtcNow
-                };
-                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "Coordinador");
-                }
-            }
-
-            // 2. Coordinador Distrital (COEL El Porvenir)
-            string coordDistEmail = "coordinador.elporvenir@coel.gob.pe";
-            if (await userManager.FindByEmailAsync(coordDistEmail) == null)
-            {
-                var user = new UsuarioAplicacion
-                {
-                    UserName = coordDistEmail,
-                    Email = coordDistEmail,
-                    Dni = "10000002",
-                    NombreCompleto = "Coordinador COEL El Porvenir",
-                    NivelJurisdiccion = "Distrital",
-                    DistritoId = 1, // El Porvenir
-                    Activo = true,
-                    EmailConfirmed = true,
-                    FechaRegistro = DateTime.UtcNow
-                };
-                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
-                {
-                    await userManager.AddToRoleAsync(user, "Coordinador");
-                }
-            }
-
-            // 3. Analista Regional (COER La Libertad)
-            string analistaRegEmail = "analista.regional@coer.gob.pe";
-            if (await userManager.FindByEmailAsync(analistaRegEmail) == null)
-            {
-                var user = new UsuarioAplicacion
-                {
-                    UserName = analistaRegEmail,
-                    Email = analistaRegEmail,
-                    Dni = "10000003",
-                    NombreCompleto = "Especialista EDAN COER La Libertad",
-                    NivelJurisdiccion = "Regional",
                     DistritoId = 10,
                     Activo = true,
                     EmailConfirmed = true,
                     FechaRegistro = DateTime.UtcNow
                 };
-                if ((await userManager.CreateAsync(user, "Analista2026*")).Succeeded)
+                if ((await userManager.CreateAsync(adminUser, "Admin2026*")).Succeeded)
                 {
-                    await userManager.AddToRoleAsync(user, "Analista");
+                    await userManager.AddToRoleAsync(adminUser, "Administrador");
                 }
             }
 
-            // 4. Analista Distrital (Monitoreo de Quebradas)
+            // 2. Analista Distrital (Monitoreo de Quebradas)
             string analistaDistEmail = "analista.huanchaco@coel.gob.pe";
             if (await userManager.FindByEmailAsync(analistaDistEmail) == null)
             {
@@ -120,27 +76,71 @@ namespace ResilienciaNorte.Repository
                 }
             }
 
-            // 5. Administrador General del Sistema
-            string adminEmail = "admin@coep.gob.pe";
-            if (await userManager.FindByEmailAsync(adminEmail) == null)
+            // 3. Coordinador Distrital (COEL El Porvenir)
+            string coordDistEmail = "coordinador.elporvenir@coel.gob.pe";
+            if (await userManager.FindByEmailAsync(coordDistEmail) == null)
             {
-                var adminUser = new UsuarioAplicacion
+                var user = new UsuarioAplicacion
                 {
-                    UserName = adminEmail,
-                    Email = adminEmail,
-                    Dni = "00000001",
-                    NombreCompleto = "Administrador Provincial COEP",
-                    NivelJurisdiccion = "Provincial",
+                    UserName = coordDistEmail,
+                    Email = coordDistEmail,
+                    Dni = "10000002",
+                    NombreCompleto = "Coordinador COEL El Porvenir",
+                    NivelJurisdiccion = "Distrital",
+                    DistritoId = 1, // El Porvenir
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Coordinador");
+                }
+            }
+
+            // 4. Analista Regional (COER La Libertad)
+            string analistaRegEmail = "analista.regional@coer.gob.pe";
+            if (await userManager.FindByEmailAsync(analistaRegEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = analistaRegEmail,
+                    Email = analistaRegEmail,
+                    Dni = "10000003",
+                    NombreCompleto = "Especialista EDAN COER La Libertad",
+                    NivelJurisdiccion = "Regional",
                     DistritoId = 10,
                     Activo = true,
                     EmailConfirmed = true,
                     FechaRegistro = DateTime.UtcNow
                 };
-                if ((await userManager.CreateAsync(adminUser, "Admin2026*")).Succeeded)
+                if ((await userManager.CreateAsync(user, "Analista2026*")).Succeeded)
                 {
-                    await userManager.AddToRoleAsync(adminUser, "Administrador");
+                    await userManager.AddToRoleAsync(user, "Analista");
                 }
             }
+
+            // 5. Coordinador Provincial (COEP Trujillo)
+            string coordProvEmail = "coordinador.provincial@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(coordProvEmail) == null)
+            {
+                var user = new UsuarioAplicacion
+                {
+                    UserName = coordProvEmail,
+                    Email = coordProvEmail,
+                    Dni = "10000001",
+                    NombreCompleto = "Ing. Coordinador COEP Trujillo",
+                    NivelJurisdiccion = "Provincial",
+                    DistritoId = 10, // Trujillo Centro
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+                if ((await userManager.CreateAsync(user, "Coord2026*")).Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, "Coordinador");
+                }
+            }                        
 
             // 6. Evaluador de Campo (Brigadista EDAN Terreno)
             string evaluadorEmail = "evaluador.campo@coep.gob.pe";
@@ -163,6 +163,30 @@ namespace ResilienciaNorte.Repository
                 if (resultado.Succeeded)
                 {
                     await userManager.AddToRoleAsync(evaluadorUser, "EvaluadorCampo");
+                }
+            }
+
+            // 7. Almacenero / Custodio BAH (Módulo Logístico)
+            string logisticoEmail = "almacen.bah@coep.gob.pe";
+            if (await userManager.FindByEmailAsync(logisticoEmail) == null)
+            {
+                var almaceneroUser = new UsuarioAplicacion
+                {
+                    UserName = logisticoEmail,
+                    Email = logisticoEmail,
+                    Dni = "10000006",
+                    NombreCompleto = "Custodio Central Almacén BAH",
+                    NivelJurisdiccion = "Provincial",
+                    DistritoId = 10, // Trujillo Centro (Almacén Central)
+                    Activo = true,
+                    EmailConfirmed = true,
+                    FechaRegistro = DateTime.UtcNow
+                };
+
+                var resultado = await userManager.CreateAsync(almaceneroUser, "Almacen2026*");
+                if (resultado.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(almaceneroUser, "LogisticoAlmacen");
                 }
             }
         }

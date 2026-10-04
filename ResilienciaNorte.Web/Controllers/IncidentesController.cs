@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
@@ -12,11 +13,13 @@ namespace ResilienciaNorte.Web.Controllers
     {
         private readonly IIncidenteService _incidenteService;
         private readonly IHubContext<EmergenciaHub> _hubContext;
+        private readonly UserManager<UsuarioAplicacion> _userManager;
 
-        public IncidentesController(IIncidenteService incidenteService, IHubContext<EmergenciaHub> hubContext)
+        public IncidentesController(IIncidenteService incidenteService, IHubContext<EmergenciaHub> hubContext, UserManager<UsuarioAplicacion> userManager)
         {
             _incidenteService = incidenteService;
             _hubContext = hubContext;
+            _userManager = userManager;
         }
 
         // 1. Dashboard Provincial: Solo para funcionarios autenticados
@@ -169,6 +172,26 @@ namespace ResilienciaNorte.Web.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [AllowAnonymous]
+        public async Task<IActionResult> Portal()
+        {
+            // Si el ciudadano ya está logueado, le cargamos directamente sus reportes
+            if (User.Identity != null && User.Identity.IsAuthenticated)
+            {
+                var usuario = await _userManager.GetUserAsync(User);
+                if (usuario != null)
+                {
+                    // Obtenemos todos los incidentes y filtramos por su DNI
+                    var todos = await _incidenteService.ObtenerTodosAsync(null, null);
+                    var misReportes = todos.Where(i => i.DniCiudadano == usuario.Dni).ToList();
+
+                    ViewBag.MisReportes = misReportes;
+                    ViewBag.UsuarioActual = usuario;
+                }
+            }
+            return View();
         }
     }
 }

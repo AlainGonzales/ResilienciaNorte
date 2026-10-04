@@ -29,7 +29,6 @@ namespace ResilienciaNorte.Web.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            // Permitir inicio de sesión con Email o DNI
             var usuario = await _userManager.FindByEmailAsync(model.EmailODni)
                           ?? await _userManager.Users.FirstOrDefaultAsync(u => u.Dni == model.EmailODni);
 
@@ -43,7 +42,32 @@ namespace ResilienciaNorte.Web.Controllers
 
             if (resultado.Succeeded)
             {
-                return RedirectToAction("Index", "Home");
+                // 1. Administrador -> Control de Usuarios
+                if (await _userManager.IsInRoleAsync(usuario, "Administrador"))
+                {
+                    return RedirectToAction("Usuarios", "Admin");
+                }
+
+                // 2. Almacenero / Logístico -> Almacén BAH
+                if (await _userManager.IsInRoleAsync(usuario, "LogisticoAlmacen"))
+                {
+                    return RedirectToAction("Index", "Recursos");
+                }
+
+                // 3. Evaluador de Campo -> Consola EDAN
+                if (await _userManager.IsInRoleAsync(usuario, "EvaluadorCampo"))
+                {
+                    return RedirectToAction("ConsolaCampo", "Edan");
+                }
+
+                // 4. Operador COEP / Analistas / Coordinadores -> Panel Operativo
+                if (!await _userManager.IsInRoleAsync(usuario, "Ciudadano"))
+                {
+                    return RedirectToAction("Index", "Home");
+                }
+
+                // 5. Ciudadano -> Portal de Reportes
+                return RedirectToAction("Portal", "Incidentes");
             }
 
             TempData["ErrorLogin"] = "Contraseña incorrecta.";
