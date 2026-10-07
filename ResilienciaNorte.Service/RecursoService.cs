@@ -77,7 +77,7 @@ namespace ResilienciaNorte.Service
                     StockAnterior = stockAnterior,
                     StockPosterior = stockPosterior,
                     UsuarioResponsableId = usuarioId,
-                    FechaHora = DateTime.UtcNow
+                    FechaHora = TimeHelper.Ahora
                 };
 
                 _context.MovimientosAlmacen.Add(movimiento);
@@ -121,7 +121,7 @@ namespace ResilienciaNorte.Service
                     StockAnterior = stockAnterior,
                     StockPosterior = stockPosterior,
                     UsuarioResponsableId = usuarioId,
-                    FechaHora = DateTime.UtcNow
+                    FechaHora = TimeHelper.Ahora
                 };
 
                 _context.MovimientosAlmacen.Add(movimiento);
@@ -148,14 +148,14 @@ namespace ResilienciaNorte.Service
 
             var solicitud = new SolicitudReabastecimiento
             {
-                CodigoSolicitud = $"SOL-{DateTime.UtcNow.Year}-{new Random().Next(1000, 9999)}",
+                CodigoSolicitud = $"SOL-{TimeHelper.Ahora.Year}-{new Random().Next(1000, 9999)}",
                 DistritoOrigenId = distritoOrigenId,
                 NivelDestino = nivelDestino,
                 RecursoId = recursoId,
                 CantidadSolicitada = cantidad,
                 Justificacion = justificacion,
                 Estado = "Pendiente",
-                FechaSolicitud = DateTime.UtcNow
+                FechaSolicitud = TimeHelper.Ahora
             };
 
             _context.SolicitudesReabastecimiento.Add(solicitud);

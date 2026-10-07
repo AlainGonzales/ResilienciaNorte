@@ -30,34 +30,40 @@
         <!-- ══════════════════════════════════════════════════════════════════════════ -->
         <div class="card shadow-sm border-0 mb-4 bg-white" style="border-left: 5px solid #dc2626 !important;">
             <div class="card-body p-4 p-lg-5">
-                <div class="row align-items-center">
-                    <div class="col-lg-8">
-                        <span class="badge bg-danger mb-2 px-3 py-1 text-uppercase fw-bold">Defensa Civil Trujillo</span>
-                        <h1 class="display-6 fw-bold text-dark mb-2">
-                            Sistema Provincial de Alerta Temprana y Resiliencia
-                        </h1>
-                        <p class="lead text-muted mb-4">
-                            Monitoreo en tiempo real de quebradas, cuencas hídricas y atención logística de emergencia ante desbordes pluviales en los 11 distritos de la Provincia de Trujillo.
+                <span class="badge bg-danger mb-2 px-3 py-1 text-uppercase fw-bold">Defensa Civil Trujillo</span>
+                <h1 class="display-6 fw-bold text-dark mb-3">
+                    Sistema Provincial de Alerta Temprana y Resiliencia
+                </h1>
+                <p class="lead text-muted mb-4">
+                    Monitoreo en tiempo real de quebradas, cuencas hídricas y atención logística de emergencia ante desbordes pluviales en los 11 distritos de la Provincia de Trujillo.
+                </p>
+
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <h5 class="fw-bold text-dark mb-3">Nuestro Propósito</h5>
+                        <p class="text-secondary">
+                            Proteger la vida y los bienes de la población trujillana mediante un sistema integrado de alertas tempranas,
+                            monitoreo constante de zonas de riesgo y respuesta logística coordinada ante emergencias por inundación pluvial.
                         </p>
-                        <div class="d-flex gap-3 flex-wrap">
-                            <a asp-controller="Incidentes" asp-action="Registrar" class="btn btn-danger btn-lg px-4 fw-bold shadow-sm">
-                                <i class="bi bi-megaphone-fill me-2"></i> Reportar Emergencia Ciudadana
-                            </a>
-                            <button type="button" class="btn btn-outline-dark btn-lg px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalBuscarReporte">
-                                <i class="bi bi-shield-lock-fill me-2"></i> Consultar Estado con PIN OTP
-                            </button>
-                        </div>
                     </div>
-                    <div class="col-lg-4 text-center mt-4 mt-lg-0">
-                        <div class="p-4 bg-light rounded-3 border">
-                            <i class="bi bi-shield-shaded text-danger" style="font-size: 5rem;"></i>
-                            <h5 class="fw-bold text-dark mt-2 mb-1">COEP TRUJILLO</h5>
-                            <small class="text-muted d-block mb-3">Acceso seguro para brigadistas, evaluadores y logística</small>
-                            <button type="button" class="btn btn-dark w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalAuth">
-                                <i class="bi bi-box-arrow-in-right me-1"></i> Ingreso a Intranet
-                            </button>
-                        </div>
+                    <div class="col-lg-6">
+                        <h5 class="fw-bold text-dark mb-3">Funcionalidades Principales</h5>
+                        <ul class="list-unstyled text-secondary small">
+                            <li class="mb-2"><i class="bi bi-check-circle text-danger me-2"></i> Reporte de emergencias en tiempo real desde cualquier dispositivo</li>
+                            <li class="mb-2"><i class="bi bi-check-circle text-danger me-2"></i> Validación de reportes con PIN OTP de seguridad</li>
+                            <li class="mb-2"><i class="bi bi-check-circle text-danger me-2"></i> Seguimiento del estado de reportes registrados</li>
+                            <li class="mb-2"><i class="bi bi-check-circle text-danger me-2"></i> Coordinación interinstitucional de respuesta</li>
+                        </ul>
                     </div>
+                </div>
+
+                <div class="mt-4 p-3 bg-light rounded-2 border-start border-4 border-danger">
+                    <h6 class="fw-bold text-dark mb-2">¿Cómo Reportar una Emergencia?</h6>
+                    <p class="text-secondary small mb-0">
+                        Utiliza el botón "Reporte de Emergencia" en la barra superior de navegación para reportar inmediatamente
+                        cualquier desborde, inundación o situación de riesgo. Tu reporte será validado por nuestro equipo de operaciones
+                        y se coordinarán las acciones correspondientes.
+                    </p>
                 </div>
             </div>
         </div>
@@ -325,42 +331,6 @@
         }
     }
 
-</div>
-
-<!-- MODAL BÚSQUEDA RÁPIDA (CIUDADANO ANÓNIMO) -->
-<div class="modal fade" id="modalBuscarReporte" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow border-0">
-            <form asp-controller="Incidentes" asp-action="SolicitarOtp" method="post">
-                @Html.AntiForgeryToken()
-                <div class="modal-header bg-dark text-white py-3">
-                    <h5 class="modal-title fs-6 fw-bold">
-                        <i class="bi bi-search text-danger me-2"></i> Consultar Estado de Mi Reporte
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <p class="small text-muted mb-3">
-                        Ingrese el código correlativo de su reporte y su DNI para generar un PIN de validación seguro de 30 segundos.
-                    </p>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Código de Alerta *</label>
-                        <input type="text" name="codigoIncidente" class="form-control text-uppercase font-monospace" placeholder="ALT-2026-0001" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">DNI del Informante *</label>
-                        <input type="text" name="dni" maxlength="8" class="form-control" placeholder="43243516" required />
-                    </div>
-                </div>
-                <div class="modal-footer bg-light py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger btn-sm px-3 fw-bold">
-                        <i class="bi bi-key-fill me-1"></i> Validar con PIN OTP
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 <!-- MODAL LOGIN / REGISTRO -->

@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 using ResilienciaNorte.Repository;
 using ResilienciaNorte.Service;
+using System.Globalization;
+
+// Configurar zona horaria global para Perú (UTC-5)
+var zonaHoraPerú = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+TimeZoneInfo.ClearCachedData();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +46,7 @@ builder.Services.AddIdentity<UsuarioAplicacion, IdentityRole>(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Home/Index"; // Redirige a la pantalla principal con el modal de login
-    options.AccessDeniedPath = "/Home/Index";
+    options.AccessDeniedPath = "/Incidentes/Portal"; // Redirige al portal del ciudadano si intenta acceder sin permisos
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
 });
 

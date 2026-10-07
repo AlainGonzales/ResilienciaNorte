@@ -25,9 +25,9 @@
                         <p class="text-muted small mb-4">
                             Emita un aviso urgente por desborde o aniego en su distrito. Se registrará con coordenadas GPS y se le otorgará un código correlativo oficial.
                         </p>
-                        <a asp-action="Registrar" class="btn btn-danger btn-lg w-100 fw-bold shadow-sm">
+                        <button type="button" class="btn btn-danger btn-lg w-100 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalReportarEmergencia">
                             Iniciar Reporte Civil
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -42,9 +42,9 @@
                         <p class="text-muted small mb-4">
                             Si ya cuenta con un código (ALT-2026-XXXX) y no tiene cuenta, ingrese su DNI y genere un PIN OTP temporal para verificar el avance del auxilio.
                         </p>
-                        <button type="button" class="btn btn-outline-dark btn-lg w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalBuscarReporte">
+                        <a asp-action="Consultar" class="btn btn-outline-dark btn-lg w-100 fw-bold">
                             Verificar con PIN OTP
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -54,14 +54,86 @@
     {
         <!-- FLUJO PARA CIUDADANO LOGUEADO: BANDEJA COMPLETA DE SUS REPORTES -->
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
-                <h5 class="mb-0 fw-bold">
-                    <i class="bi bi-folder2-open text-warning me-2"></i> Mis Alertas Registradas (DNI: @usuario?.Dni)
-                </h5>
-                <a asp-action="Registrar" class="btn btn-danger btn-sm fw-bold">
-                    <i class="bi bi-plus-circle me-1"></i> Nueva Emergencia
-                </a>
+            <div class="card-header bg-dark text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-folder2-open text-warning me-2"></i> Mis Alertas Registradas (DNI: @usuario?.Dni)
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <a asp-action="DescargarReportesPDF" class="btn btn-success btn-sm fw-bold">
+                            <i class="bi bi-file-pdf me-1"></i> Descargar PDF
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalReportarEmergenciaLogueado">
+                            <i class="bi bi-plus-circle me-1"></i> Nueva Emergencia
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            <!-- Panel de Filtros -->
+            <div class="card-body bg-light border-bottom">
+                <form asp-action="Portal" method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Buscar Código</label>
+                        <input type="text" name="buscar" class="form-control form-control-sm" placeholder="ALT-2026-XXXX" value="@ViewBag.BusquedaActiva" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Estado</label>
+                        <select name="estado" class="form-select form-select-sm">
+                            <option value="">-- Todos los estados --</option>
+                            @if (ViewBag.Estados != null)
+                            {
+                                @foreach (var est in ViewBag.Estados)
+                                {
+                                    <option value="@est" selected="@(est == ViewBag.EstadoSeleccionado)">@est</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Desde</label>
+                        <input type="date" name="fechaDesde" class="form-control form-control-sm" value="@ViewBag.FechaDesde" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Hasta</label>
+                        <input type="date" name="fechaHasta" class="form-control form-control-sm" value="@ViewBag.FechaHasta" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold w-100">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+                        <a asp-action="Portal" class="btn btn-secondary btn-sm fw-bold">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Indicador de Filtros Activos -->
+            @if (!string.IsNullOrWhiteSpace(ViewBag.BusquedaActiva) || !string.IsNullOrWhiteSpace(ViewBag.EstadoSeleccionado) || !string.IsNullOrWhiteSpace(ViewBag.FechaDesde) || !string.IsNullOrWhiteSpace(ViewBag.FechaHasta))
+            {
+                <div class="alert alert-info mb-0 border-0 rounded-0 py-2 px-4 small">
+                    <i class="bi bi-funnel me-2"></i><strong>Filtros aplicados:</strong>
+                    @if (!string.IsNullOrWhiteSpace(ViewBag.BusquedaActiva))
+                    {
+                        <span class="badge bg-info me-2">Código: @ViewBag.BusquedaActiva</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(ViewBag.EstadoSeleccionado))
+                    {
+                        <span class="badge bg-info me-2">Estado: @ViewBag.EstadoSeleccionado</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(ViewBag.FechaDesde))
+                    {
+                        <span class="badge bg-info me-2">Desde: @ViewBag.FechaDesde</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(ViewBag.FechaHasta))
+                    {
+                        <span class="badge bg-info">Hasta: @ViewBag.FechaHasta</span>
+                    }
+                </div>
+            }
+
+            <!-- Tabla de Reportes -->
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light small">
@@ -69,6 +141,7 @@
                             <th>Código</th>
                             <th>Tipo de Evento</th>
                             <th>Sector / Quebrada</th>
+                            <th>Familias</th>
                             <th>Fecha</th>
                             <th class="text-center">Estado</th>
                             <th class="text-center">Acción</th>
@@ -78,9 +151,16 @@
                         @if (misReportes == null || !misReportes.Any())
                         {
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
-                                    No se encontraron alertas emitidas bajo su número de DNI.
+                                    @if (!string.IsNullOrWhiteSpace(ViewBag.BusquedaActiva) || !string.IsNullOrWhiteSpace(ViewBag.EstadoSeleccionado))
+                                    {
+                                        <span>No se encontraron reportes con los filtros aplicados.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>No se encontraron alertas emitidas bajo su número de DNI.</span>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -92,15 +172,18 @@
                                     <td class="font-monospace fw-bold text-danger">@item.CodigoIncidente</td>
                                     <td class="fw-bold">@item.TipoEvento</td>
                                     <td>@item.SectorCritico</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark">@item.FamiliasAfectadas</span>
+                                    </td>
                                     <td class="small">@item.FechaRegistro.ToString("dd/MM/yyyy HH:mm")</td>
                                     <td class="text-center">
-                                        <span class="badge @(item.Estado == "Reportado" ? "bg-warning text-dark" : "bg-success")">
+                                        <span class="badge @(item.Estado == "Reportado" ? "bg-warning text-dark" : item.Estado == "Desestimado" ? "bg-secondary" : "bg-success")">
                                             @item.Estado
                                         </span>
                                     </td>
                                     <td class="text-center">
                                         <a asp-action="Seguimiento" asp-route-codigo="@item.CodigoIncidente" class="btn btn-sm btn-outline-danger">
-                                            <i class="bi bi-activity"></i> Ver Estado en Vivo
+                                            <i class="bi bi-activity"></i> Ver Estado
                                         </a>
                                     </td>
                                 </tr>
@@ -109,35 +192,328 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Resumen -->
+            @if (misReportes != null && misReportes.Any())
+            {
+                <div class="card-footer bg-light text-muted small py-2 px-4">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Total: <strong>@misReportes.Count()</strong> reporte(s) encontrado(s)
+                </div>
+            }
         </div>
     }
 </div>
 
-<!-- MODAL BÚSQUEDA OTP -->
-<div class="modal fade" id="modalBuscarReporte" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow border-0">
-            <form asp-controller="Incidentes" asp-action="SolicitarOtp" method="post">
-                @Html.AntiForgeryToken()
-                <div class="modal-header bg-dark text-white py-3">
-                    <h5 class="modal-title fs-6 fw-bold">Consultar Estado de Mi Reporte</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Código de Alerta *</label>
-                        <input type="text" name="codigoIncidente" class="form-control font-monospace" placeholder="ALT-2026-XXXX" required />
+<!-- MODAL REPORTAR EMERGENCIA (Solo accesible para usuarios no logueados en el Portal) -->
+@if (!estaLogueado)
+{
+    <div class="modal fade" id="modalReportarEmergencia" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow border-0">
+                <form asp-controller="Incidentes" asp-action="Registrar" method="post" id="formReporteModal">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header bg-danger text-white py-3">
+                        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Reportar Emergencia Ciudadana</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">DNI del Informante *</label>
-                        <input type="text" name="dni" maxlength="8" class="form-control" placeholder="43243516" required />
+                    <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">1. Datos del Informante</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">DNI (8 dígitos) *</label>
+                                <input type="text" name="DniCiudadano" id="modalDni" class="form-control" maxlength="8" placeholder="43243516" required />
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold">Nombre Completo *</label>
+                                <input type="text" name="NombreCiudadano" class="form-control" placeholder="Nombres y Apellidos" required />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Teléfono *</label>
+                                <input type="text" name="Telefono" class="form-control" maxlength="9" placeholder="983093027" required />
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">2. Ubicación y Magnitud</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Distrito Afectado *</label>
+                                <select name="DistritoId" asp-items="ViewBag.Distritos" class="form-select form-select-sm" required>
+                                    <option value="">-- Seleccionar Distrito --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Sector/Quebrada *</label>
+                                <input type="text" name="SectorCritico" class="form-control form-control-sm" placeholder="Ej: Sector Gran Chimú" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Tipo de Evento *</label>
+                                <select name="TipoEvento" class="form-select form-select-sm" required>
+                                    <option value="Inundación Pluvial (Lluvias)">Inundación Pluvial</option>
+                                    <option value="Desborde Quebrada">Desborde Quebrada</option>
+                                    <option value="Colapso de Red de Desagüe">Colapso de Desagüe</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">N° Familias Afectadas *</label>
+                                <input type="number" name="FamiliasAfectadas" class="form-control form-control-sm" min="1" max="5000" placeholder="10" required />
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Dirección/Ubicación *</label>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0" id="btnGpsAnonimo">
+                                        <i class="bi bi-geo-alt-fill"></i> Usar mi GPS actual
+                                    </button>
+                                </div>
+                                <input type="text" name="DireccionReferencia" id="txtDireccionAnonimo" class="form-control form-control-sm" placeholder="Calle, número o coordenadas GPS" required />
+                                                                
+                                <div class="mt-2 text-end">
+                                    <button type="button" id="btnVerMaps" class="btn btn-sm btn-outline-primary d-none">
+                                        <i class="bi bi-map-fill me-1"></i> Ver ubicación en Google Maps
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">Descripción Detallada *</label>
+                                <textarea name="Descripcion" class="form-control form-control-sm" rows="3" placeholder="Explique la gravedad, altura del agua y daños visibles..." required></textarea>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="modal-footer bg-light py-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger btn-sm px-3 fw-bold">Validar PIN OTP</button>
-                </div>
-            </form>
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
+                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+
+    <script>
+        // GPS para modal anónimo
+        const btnGpsAnonimo = document.getElementById("btnGpsAnonimo");
+        const txtDireccionAnonimo = document.getElementById("txtDireccionAnonimo");
+        const btnVerMapsAnonimo = document.getElementById("btnVerMaps");
+        let ultimaLatitudAnonimo = null;
+        let ultimaLongitudAnonimo = null;
+
+        if (btnGpsAnonimo) {
+            btnGpsAnonimo.addEventListener("click", function () {
+                if (!navigator.geolocation) {
+                    alert("Su navegador no soporta geolocalización.");
+                    return;
+                }
+
+                const btn = this;
+                const textoOriginal = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obteniendo GPS...';
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        const precision = Math.round(pos.coords.accuracy);
+
+                        ultimaLatitudAnonimo = lat;
+                        ultimaLongitudAnonimo = lng;
+
+                        const textoGps = `[GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} | Precisión: ±${precision}m] `;
+                        txtDireccionAnonimo.value = textoGps + (txtDireccionAnonimo.value.replace(/\[GPS:.*?\]\s*/g, '') || "");
+
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-lg"></i> GPS Capturado';
+                        btn.classList.replace("btn-outline-danger", "btn-success");
+
+                        if (btnVerMapsAnonimo) {
+                            btnVerMapsAnonimo.classList.remove("d-none");
+                        }
+                    },
+                    (err) => {
+                        btn.disabled = false;
+                        btn.innerHTML = textoOriginal;
+                        alert("No se pudo obtener la ubicación.");
+                    },
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+                );
+            });
+        }
+
+        if (btnVerMapsAnonimo) {
+            btnVerMapsAnonimo.addEventListener("click", function () {
+                if (ultimaLatitudAnonimo && ultimaLongitudAnonimo) {
+                    const url = `https://www.google.com/maps?q=${ultimaLatitudAnonimo},${ultimaLongitudAnonimo}`;
+                    window.open(url, '_blank');
+                } else {
+                    const match = txtDireccionAnonimo.value.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+                    if (match) {
+                        const url = `https://www.google.com/maps?q=${match[1]},${match[2]}`;
+                        window.open(url, '_blank');
+                    } else {
+                        alert("No hay coordenadas GPS válidas para abrir en el mapa.");
+                    }
+                }
+            });
+        }
+    </script>
+}
+
+<!-- MODAL REPORTAR EMERGENCIA PARA USUARIOS LOGUEADOS -->
+@if (estaLogueado)
+{
+    <div class="modal fade" id="modalReportarEmergenciaLogueado" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow border-0">
+                <form asp-controller="Incidentes" asp-action="Registrar" method="post" id="formReporteLogueado">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header bg-danger text-white py-3">
+                        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Reportar Nueva Emergencia</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Nota:</strong> Tu información se completa automáticamente. Solo ingresa los datos del incidente.
+                        </div>
+
+                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">1. Datos del Informante</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">DNI <span class="badge bg-success ms-1">Verificado</span></label>
+                                <input type="text" name="DniCiudadano" value="@usuario?.Dni" class="form-control" readonly style="background-color: #f0f0f0; cursor: not-allowed;" />
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold">Nombre Completo <span class="badge bg-success ms-1">Verificado</span></label>
+                                <input type="text" name="NombreCiudadano" value="@usuario?.NombreCompleto" class="form-control" readonly style="background-color: #f0f0f0; cursor: not-allowed;" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Teléfono <span class="badge bg-success ms-1">Verificado</span></label>
+                                <input type="text" name="Telefono" value="@usuario?.PhoneNumber" class="form-control" readonly style="background-color: #f0f0f0; cursor: not-allowed;" />
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">2. Ubicación y Magnitud</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Distrito Afectado *</label>
+                                <select name="DistritoId" asp-items="ViewBag.Distritos" class="form-select form-select-sm" required>
+                                    <option value="">-- Seleccionar Distrito --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Sector/Quebrada *</label>
+                                <input type="text" name="SectorCritico" class="form-control form-control-sm" placeholder="Ej: Sector Gran Chimú" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Tipo de Evento *</label>
+                                <select name="TipoEvento" class="form-select form-select-sm" required>
+                                    <option value="Inundación Pluvial (Lluvias)">Inundación Pluvial</option>
+                                    <option value="Desborde Quebrada">Desborde Quebrada</option>
+                                    <option value="Colapso de Red de Desagüe">Colapso de Desagüe</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">N° Familias Afectadas *</label>
+                                <input type="number" name="FamiliasAfectadas" class="form-control form-control-sm" min="1" max="5000" placeholder="10" required />
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-bold mb-0">Dirección/Ubicación:</label>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0" id="btnGpsLogueado">
+                                        <i class="bi bi-geo-alt-fill"></i> Usar mi GPS actual
+                                    </button>
+                                </div>
+                                <input type="text" name="DireccionReferencia" id="txtDireccionLogueado" class="form-control form-control-sm" placeholder="Calle, número o coordenadas GPS" />
+
+                                <div class="mt-2 text-end">
+                                    <button type="button" id="btnVerMapsLogueado" class="btn btn-sm btn-outline-primary d-none">
+                                        <i class="bi bi-map-fill me-1"></i> Ver ubicación en Google Maps
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">Descripción Detallada *</label>
+                                <textarea name="Descripcion" class="form-control form-control-sm" rows="3" placeholder="Explique la gravedad, altura del agua y daños visibles..." required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light py-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
+                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GPS para modal logueado
+        const btnGpsLogueado = document.getElementById("btnGpsLogueado");
+        const txtDireccionLogueado = document.getElementById("txtDireccionLogueado");
+        const btnVerMapsLogueado = document.getElementById("btnVerMapsLogueado");
+        let ultimaLatitudLogueado = null;
+        let ultimaLongitudLogueado = null;
+
+        if (btnGpsLogueado) {
+            btnGpsLogueado.addEventListener("click", function () {
+                if (!navigator.geolocation) {
+                    alert("Su navegador no soporta geolocalización.");
+                    return;
+                }
+
+                const btn = this;
+                const textoOriginal = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Obteniendo GPS...';
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        const precision = Math.round(pos.coords.accuracy);
+
+                        ultimaLatitudLogueado = lat;
+                        ultimaLongitudLogueado = lng;
+
+                        const textoGps = `[GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)} | Precisión: ±${precision}m] `;
+                        txtDireccionLogueado.value = textoGps + (txtDireccionLogueado.value.replace(/\[GPS:.*?\]\s*/g, '') || "");
+
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-lg"></i> GPS Capturado';
+                        btn.classList.replace("btn-outline-danger", "btn-success");
+
+                        btnVerMapsLogueado.classList.remove("d-none");
+                    },
+                    (err) => {
+                        btn.disabled = false;
+                        btn.innerHTML = textoOriginal;
+                        alert("No se pudo obtener la ubicación.");
+                    },
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+                );
+            });
+        }
+
+        if (btnVerMapsLogueado) {
+            btnVerMapsLogueado.addEventListener("click", function () {
+                if (ultimaLatitudLogueado && ultimaLongitudLogueado) {
+                    const url = `https://www.google.com/maps?q=${ultimaLatitudLogueado},${ultimaLongitudLogueado}`;
+                    window.open(url, '_blank');
+                } else {
+                    const match = txtDireccionLogueado.value.match(/\[GPS:\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+                    if (match) {
+                        const url = `https://www.google.com/maps?q=${match[1]},${match[2]}`;
+                        window.open(url, '_blank');
+                    } else {
+                        alert("No hay coordenadas GPS válidas para abrir en el mapa.");
+                    }
+                }
+            });
+        }
+    </script>
+}
