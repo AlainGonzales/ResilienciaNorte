@@ -92,8 +92,14 @@
 
                 <hr />
                 <div class="d-flex justify-content-between">
-                    <a asp-action="Consultar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Otra Consulta</a>
-                    <a asp-action="Index" class="btn btn-outline-dark btn-sm"><i class="bi bi-speedometer2"></i> Monitoreo Provincial</a>
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <a asp-action="Portal" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Mis Reportes</a>
+                    }
+                    else
+                    {
+                        <a asp-action="Consultar" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Otra Consulta</a>
+                    }
                 </div>
             </div>
         </div>

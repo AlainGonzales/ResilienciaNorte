@@ -1,52 +1,96 @@
 ﻿@model ResilienciaNorte.Domain.IncidenteEmergencia
 @{
     ViewData["Title"] = "Reportar Emergencia Ciudadana";
+    bool estaLogueado = ViewBag.UsuarioLogueado ?? false;
+    Layout = null; // Sin layout - solo modal
 }
 
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow border-0">
-            <div class="card-header bg-danger text-white py-3">
-                <h5 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Reporte Ciudadano / Brigada de Emergencia</h5>
-                <small>Centro de Operaciones de Emergencia Provincial - Trujillo</small>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Reportar Emergencia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+</head>
+<body>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Reportar Emergencia Ciudadana</h5>
             </div>
-            <div class="card-body p-4">
+            <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
                 <form asp-action="Registrar" method="post" id="formReporte">
                     @Html.AntiForgeryToken()
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
+                    @if (estaLogueado)
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Nota:</strong> Tu información se completa automáticamente. Solo ingresa los datos del incidente.
+                        </div>
+                    }
+
                     <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">1. Datos del Informante</h6>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label asp-for="DniCiudadano" class="form-label small fw-bold">DNI (8 dígitos) *</label>
+                            <label asp-for="DniCiudadano" class="form-label small fw-bold">
+                                DNI (8 dígitos) *
+                                @if (estaLogueado) { <span class="badge bg-success ms-1">Verificado</span> }
+                            </label>
                             <input asp-for="DniCiudadano"
                                    id="txtDni"
                                    class="form-control solo-numeros"
                                    maxlength="8"
                                    inputmode="numeric"
                                    placeholder="43243516"
+                                   readonly="@estaLogueado"
+                                   style="@(estaLogueado ? "background-color: #f0f0f0; cursor: not-allowed;" : "")"
                                    required />
                             <span asp-validation-for="DniCiudadano" class="text-danger small"></span>
+                            @if (estaLogueado)
+                            {
+                                <small class="text-muted d-block mt-1">Este campo está bloqueado. Usar datos de tu perfil.</small>
+                            }
                         </div>
                         <div class="col-md-5">
-                            <label asp-for="NombreCiudadano" class="form-label small fw-bold">Nombre Completo *</label>
+                            <label asp-for="NombreCiudadano" class="form-label small fw-bold">
+                                Nombre Completo *
+                                @if (estaLogueado) { <span class="badge bg-success ms-1">Verificado</span> }
+                            </label>
                             <input asp-for="NombreCiudadano"
                                    id="txtNombre"
                                    class="form-control solo-letras"
                                    placeholder="Nombres y Apellidos"
+                                   readonly="@estaLogueado"
+                                   style="@(estaLogueado ? "background-color: #f0f0f0; cursor: not-allowed;" : "")"
                                    required />
                             <span asp-validation-for="NombreCiudadano" class="text-danger small"></span>
+                            @if (estaLogueado)
+                            {
+                                <small class="text-muted d-block mt-1">Este campo está bloqueado. Usar datos de tu perfil.</small>
+                            }
                         </div>
                         <div class="col-md-3">
-                            <label asp-for="Telefono" class="form-label small fw-bold">Teléfono Celular *</label>
+                            <label asp-for="Telefono" class="form-label small fw-bold">
+                                Teléfono Celular *
+                                @if (estaLogueado) { <span class="badge bg-success ms-1">Verificado</span> }
+                            </label>
                             <input asp-for="Telefono"
                                    id="txtTelefono"
                                    class="form-control solo-numeros"
                                    maxlength="9"
                                    inputmode="numeric"
                                    placeholder="983093027"
+                                   readonly="@estaLogueado"
+                                   style="@(estaLogueado ? "background-color: #f0f0f0; cursor: not-allowed;" : "")"
                                    required />
                             <span asp-validation-for="Telefono" class="text-danger small"></span>
+                            @if (estaLogueado)
+                            {
+                                <small class="text-muted d-block mt-1">Este campo está bloqueado. Usar datos de tu perfil.</small>
+                            }
                         </div>
                     </div>
 
@@ -111,44 +155,41 @@
                             <span asp-validation-for="Descripcion" class="text-danger small"></span>
                         </div>
                     </div>
-
-                    <div class="d-flex justify-content-end gap-2">
-                        <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-                        <button type="submit" class="btn btn-danger px-4 fw-bold">
-                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
-                        </button>
-                    </div>
                 </form>
+            </div>
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Cancelar
+                </button>
+                <button type="submit" form="formReporte" class="btn btn-danger px-4 fw-bold">
+                    <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                </button>
             </div>
         </div>
     </div>
-</div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 @section Scripts {
     <script>
         // ── 1. Validaciones de Entrada en Vivo ─────────────────────────────────────
 
-        // Bloquear todo carácter que no sea dígito (0-9) en DNI y Teléfono
         document.querySelectorAll(".solo-numeros").forEach(input => {
             input.addEventListener("keydown", function (e) {
-                // Permitir teclas de control: retroceso, tab, flechas, suprimir
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter'].includes(e.key) ||
                     (e.ctrlKey === true && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase()))) {
                     return;
                 }
-                // Si la tecla presionada no es un número, bloquear el evento
                 if (!/^[0-9]$/.test(e.key)) {
                     e.preventDefault();
                 }
             });
 
-            // Limpieza reactiva ante eventos de pegar (Paste)
             input.addEventListener("input", function () {
                 this.value = this.value.replace(/[^0-9]/g, '');
             });
         });
 
-        // Bloquear caracteres no numéricos o signos negativos en Familias Afectadas
         document.querySelectorAll(".solo-numeros-positivos").forEach(input => {
             input.addEventListener("keydown", function (e) {
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter'].includes(e.key) ||
@@ -165,14 +206,12 @@
             });
         });
 
-        // Solo letras y espacios en Nombre Completo (permite acentos y ñ)
         document.querySelectorAll(".solo-letras").forEach(input => {
             input.addEventListener("keydown", function (e) {
                 if (['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter', ' '].includes(e.key) ||
                     (e.ctrlKey === true && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase()))) {
                     return;
                 }
-                // Expresión regular para letras mayúsculas, minúsculas, tildes y ñ
                 if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]$/.test(e.key)) {
                     e.preventDefault();
                 }
@@ -270,3 +309,4 @@
         });
     </script>
 }
+</html>

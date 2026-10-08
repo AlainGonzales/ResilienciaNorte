@@ -59,7 +59,7 @@ namespace ResilienciaNorte.Web.Controllers
                 await _hubContext.Clients.All.SendAsync("NuevoMovimientoKardex", new
                 {
                     recursoId = recursoId,
-                    fechaHora = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm"),
+                    fechaHora = TimeHelper.Ahora.ToString("dd/MM/yyyy HH:mm"),
                     tipo = "ENTRADA",
                     concepto = $"{tipoEntrada}: {concepto}",
                     documento = documento,
