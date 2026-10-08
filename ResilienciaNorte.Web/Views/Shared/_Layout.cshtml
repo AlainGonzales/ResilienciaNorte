@@ -186,6 +186,21 @@
                             <small class="text-muted d-block text-truncate">@usuarioActual?.Email</small>
                             <span class="badge bg-danger mt-1">@usuarioActual?.NivelJurisdiccion</span>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-controller="Evaluacion" asp-action="Consola">
+                                <i class="bi bi-clipboard2-pulse me-1"></i> Consola de Campo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-controller="Ordenes" asp-action="Index">
+                                <i class="bi bi-clipboard2-check me-1"></i> Órdenes de Atención
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-controller="Recursos" asp-action="Index">
+                                <i class="bi bi-box-seam me-1"></i> Almacén de Contingencia (BAH)
+                            </a>
+                        </li>
                         <li class="mt-2">
                             <form asp-controller="Cuentas" asp-action="Logout" method="post" class="m-0">
                                 @Html.AntiForgeryToken()

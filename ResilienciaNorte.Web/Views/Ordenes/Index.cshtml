@@ -1,0 +1,136 @@
+@using ResilienciaNorte.Domain
+@model IEnumerable<OrdenAtencion>
+@{
+    ViewData["Title"] = "Órdenes de Atención";
+    var porAsignar = (ViewBag.PorAsignar as IEnumerable<IncidenteEmergencia>) ?? Enumerable.Empty<IncidenteEmergencia>();
+    string estadoActual = ViewBag.EstadoSeleccionado as string ?? "";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard2-check text-primary"></i> Órdenes de Atención</h2>
+        <p class="text-muted small mb-0">Asignación de Bienes de Ayuda Humanitaria (BAH) a incidentes constatados</p>
+    </div>
+    <a asp-controller="Evaluacion" asp-action="Consola" class="btn btn-outline-danger shadow-sm">
+        <i class="bi bi-phone me-1"></i> Consola de Campo
+    </a>
+</div>
+
+@if (TempData["MensajeExito"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle-fill me-1"></i> @TempData["MensajeExito"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["MensajeError"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Incidentes constatados que esperan asignación (priorizados por severidad) -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header card-header-resiliencia d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-hourglass-split"></i> Constatados por asignar</span>
+        <span class="badge bg-light text-dark">@porAsignar.Count()</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Código</th>
+                    <th>Sector</th>
+                    <th>Distrito</th>
+                    <th>Severidad</th>
+                    <th>Fam.</th>
+                    <th class="text-end">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!porAsignar.Any())
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-3">No hay incidentes constatados pendientes de asignación.</td></tr>
+                }
+                @foreach (var inc in porAsignar)
+                {
+                    <tr>
+                        <td class="fw-bold small">@inc.CodigoIncidente</td>
+                        <td class="small">@inc.SectorCritico</td>
+                        <td><span class="badge bg-secondary">@inc.Distrito?.Nombre</span></td>
+                        <td><partial name="_BadgeSeveridad" model="inc.Severidad" /></td>
+                        <td class="fw-bold text-danger">@inc.FamiliasAfectadas</td>
+                        <td class="text-end">
+                            <a asp-action="Crear" asp-route-incidenteId="@inc.IncidenteId" class="btn btn-sm btn-primary">
+                                <i class="bi bi-box-seam"></i> Asignar recursos
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Órdenes emitidas -->
+<div class="card shadow-sm border-0 mb-3 bg-light">
+    <div class="card-body p-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-sm-8 col-md-9">
+                <select name="estado" class="form-select form-select-sm">
+                    <option value="">-- Todas las órdenes --</option>
+                    @foreach (var e in new[] { EstadoOrden.Aprobada, EstadoOrden.EnDespacho, EstadoOrden.Entregado, EstadoOrden.Anulado })
+                    {
+                        <!option value="@e" @(estadoActual == e ? "selected" : "")>@e</!option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-secondary w-100"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a asp-action="Index" class="btn btn-sm btn-outline-secondary px-2" title="Limpiar filtro"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="card-header-resiliencia">
+                <tr>
+                    <th>Orden</th>
+                    <th>Incidente</th>
+                    <th>Distrito</th>
+                    <th class="text-center">Bienes</th>
+                    <th>Emisión (UTC)</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No hay órdenes registradas con el filtro seleccionado.</td></tr>
+                }
+                @foreach (var orden in Model)
+                {
+                    <tr>
+                        <td class="fw-bold small">@orden.CodigoOrden</td>
+                        <td class="small">@orden.Incidente?.CodigoIncidente<br /><span class="text-muted">@orden.Incidente?.SectorCritico</span></td>
+                        <td><span class="badge bg-secondary">@orden.Incidente?.Distrito?.Nombre</span></td>
+                        <td class="text-center">@orden.Detalles.Count</td>
+                        <td class="small">@orden.FechaEmision.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><partial name="_BadgeEstadoOrden" model="orden.Estado" /></td>
+                        <td class="text-end">
+                            <a asp-action="Detalle" asp-route-id="@orden.OrdenId" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -7,7 +7,7 @@
     {
         "Reportado" => 25,
         "Constatado" => 50,
-        "En Atención" => 75,
+        "En Atención" or "Con Asignación" or "En Despacho" => 75,
         "Atendido" => 100,
         "Desestimado" => 100,
         _ => 25
@@ -123,7 +123,7 @@
 
                 let porcentaje = 25;
                 if (nuevoEstado === "Constatado") porcentaje = 50;
-                else if (nuevoEstado === "En Atención") porcentaje = 75;
+                else if (["En Atención", "Con Asignación", "En Despacho"].includes(nuevoEstado)) porcentaje = 75;
                 else if (nuevoEstado === "Atendido" || nuevoEstado === "Desestimado") porcentaje = 100;
 
                 const barra = document.getElementById("barraProgreso");

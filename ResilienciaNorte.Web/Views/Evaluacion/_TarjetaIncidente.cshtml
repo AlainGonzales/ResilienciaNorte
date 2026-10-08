@@ -1,0 +1,62 @@
+@using ResilienciaNorte.Domain
+@model IncidenteEmergencia
+@{
+    var nivel = NivelSeveridadExtensions.DesdeEtiqueta(Model.Severidad);
+    string claseBorde = nivel switch
+    {
+        NivelSeveridad.Critico => "border-danger",
+        NivelSeveridad.Grave => "border-warning",
+        _ => "border-secondary"
+    };
+}
+
+<article class="card tarjeta-incidente shadow-sm border-0 border-start border-5 @claseBorde mb-3"
+         data-id="@Model.IncidenteId"
+         data-codigo="@Model.CodigoIncidente"
+         data-prioridad="@((int)nivel)"
+         data-familias="@Model.FamiliasAfectadas"
+         data-fecha="@Model.FechaRegistro.ToString("o")">
+    <div class="card-body pb-2">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <div>
+                <partial name="_BadgeSeveridad" model="Model.Severidad" />
+                <span class="font-monospace fw-bold small ms-1">@Model.CodigoIncidente</span>
+            </div>
+            <small class="text-muted text-nowrap"><i class="bi bi-clock"></i> <span class="hace" data-utc="@Model.FechaRegistro.ToString("o")"></span></small>
+        </div>
+
+        <h5 class="fw-bold mb-1">@Model.SectorCritico</h5>
+        <div class="mb-2">
+            <span class="badge bg-secondary">@Model.Distrito?.Nombre</span>
+            <span class="badge bg-light text-dark border">@Model.TipoEvento</span>
+            <span class="badge bg-light text-danger border"><i class="bi bi-people-fill"></i> @Model.FamiliasAfectadas fam.</span>
+        </div>
+
+        <p class="mb-1 small">@Model.Descripcion</p>
+        @if (!string.IsNullOrWhiteSpace(Model.DireccionReferencia))
+        {
+            <p class="mb-1 small text-muted"><i class="bi bi-geo-alt-fill"></i> @Model.DireccionReferencia</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Telefono))
+        {
+            <a href="tel:@Model.Telefono" class="small text-decoration-none">
+                <i class="bi bi-telephone-fill"></i> @Model.NombreCiudadano · @Model.Telefono
+            </a>
+        }
+    </div>
+
+    <div class="card-footer bg-transparent border-0 pt-0 pb-3">
+        <div class="row g-2">
+            <div class="col-6">
+                <button type="button" class="btn btn-success w-100 py-3 fw-bold text-nowrap accion-constatar">
+                    <i class="bi bi-check-circle-fill d-block fs-3"></i> Constatado
+                </button>
+            </div>
+            <div class="col-6">
+                <button type="button" class="btn btn-outline-danger w-100 py-3 fw-bold text-nowrap accion-desestimar">
+                    <i class="bi bi-x-circle-fill d-block fs-3"></i> Desestimado
+                </button>
+            </div>
+        </div>
+    </div>
+</article>

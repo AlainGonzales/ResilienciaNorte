@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
 using ResilienciaNorte.Repository;
 using ResilienciaNorte.Service;
+using ResilienciaNorte.Service.Strategies;
 using System.Globalization;
 
 // Configurar zona horaria global para Perú (UTC-5)
@@ -53,6 +54,15 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Inyección de la Capa de Servicios
 builder.Services.AddScoped<IIncidenteService, IncidenteService>();
 builder.Services.AddScoped<IRecursoService, RecursoService>();
+
+// Triaje EDAN y Maestro-Detalle de órdenes de atención
+builder.Services.AddScoped<IEvaluacionService, EvaluacionService>();
+builder.Services.AddScoped<IOrdenAtencionService, OrdenAtencionService>();
+
+// Patrón Strategy: criterios de priorización de severidad (el clasificador los combina)
+builder.Services.AddSingleton<ISeveridadStrategy, SeveridadPorFamiliasStrategy>();
+builder.Services.AddSingleton<ISeveridadStrategy, SeveridadPorQuebradaStrategy>();
+builder.Services.AddSingleton<IClasificadorSeveridad, ClasificadorSeveridad>();
 
 builder.Services.AddSignalR();
 

@@ -1,0 +1,238 @@
+@using ResilienciaNorte.Service
+@model IEnumerable<ResilienciaNorte.Domain.IncidenteEmergencia>
+@{
+    ViewData["Title"] = "Consola de Campo";
+    Layout = "_LayoutMovil";
+    var resumen = (ResumenEvaluacion)ViewBag.Resumen;
+}
+
+<div id="consola"
+     data-url-constatar="@Url.Action("Constatar", "Evaluacion")"
+     data-url-desestimar="@Url.Action("Desestimar", "Evaluacion")"
+     data-url-tarjeta="@Url.Action("Tarjeta", "Evaluacion")">
+
+    <form id="formToken">@Html.AntiForgeryToken()</form>
+
+    <div class="mb-3">
+        <h4 class="fw-bold mb-0"><i class="bi bi-clipboard2-pulse text-danger"></i> Evaluación de Campo</h4>
+        <small class="text-muted">Triaje EDAN · alertas ordenadas por prioridad</small>
+    </div>
+
+    <div class="row g-2 text-center mb-3">
+        <div class="col-4">
+            <div class="bg-white rounded shadow-sm py-2">
+                <div class="fs-3 fw-bold text-danger" id="contPendientes">@resumen.Pendientes</div>
+                <small class="text-muted">Pendientes</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="bg-white rounded shadow-sm py-2">
+                <div class="fs-3 fw-bold text-success" id="contConstatados">@resumen.Constatados</div>
+                <small class="text-muted">Constatados</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="bg-white rounded shadow-sm py-2">
+                <div class="fs-3 fw-bold text-secondary" id="contDesestimados">@resumen.Desestimados</div>
+                <small class="text-muted">Desestimados</small>
+            </div>
+        </div>
+    </div>
+
+    <div id="listaTarjetas">
+        @foreach (var incidente in Model)
+        {
+            <partial name="_TarjetaIncidente" model="incidente" />
+        }
+    </div>
+
+    <div id="sinPendientes" class="text-center text-muted py-5 @(Model.Any() ? "d-none" : "")">
+        <i class="bi bi-check2-all display-3 text-success"></i>
+        <p class="mt-2 mb-0 fw-bold">Sin alertas pendientes</p>
+        <small>Las nuevas alertas aparecerán aquí automáticamente.</small>
+    </div>
+</div>
+
+<!-- Confirmación de desestimación (acción difícil de revertir) -->
+<div class="modal fade" id="modalDesestimar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-x-circle text-danger"></i> Desestimar <span id="modalCodigo" class="font-monospace"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">El reporte se descarta y el ciudadano verá el seguimiento como cerrado.</p>
+                <label for="motivoDesestimar" class="form-label small fw-bold">Motivo (opcional)</label>
+                <textarea id="motivoDesestimar" class="form-control" rows="3" maxlength="300" placeholder="Ej.: Sin afectación en el lugar indicado"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light btn-lg" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-lg" id="confirmarDesestimar">Desestimar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3">
+    <div id="toastResultado" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body fw-bold" id="toastMensaje"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const consola = document.getElementById('consola');
+        const lista = document.getElementById('listaTarjetas');
+        const token = document.querySelector('#formToken input[name="__RequestVerificationToken"]').value;
+        const modalDesestimar = new bootstrap.Modal(document.getElementById('modalDesestimar'));
+        const toast = new bootstrap.Toast(document.getElementById('toastResultado'), { delay: 3500 });
+        let tarjetaPendiente = null; // tarjeta que se está desestimando
+
+        // ── Utilidades de UI ────────────────────────────────────────────────
+        function avisar(mensaje, ok) {
+            const el = document.getElementById('toastResultado');
+            el.classList.remove('text-bg-success', 'text-bg-danger', 'text-bg-warning');
+            el.classList.add(ok ? 'text-bg-success' : 'text-bg-danger');
+            document.getElementById('toastMensaje').textContent = mensaje;
+            toast.show();
+        }
+
+        function sumar(idContador, delta) {
+            const el = document.getElementById(idContador);
+            el.textContent = Math.max(0, parseInt(el.textContent || '0', 10) + delta);
+        }
+
+        function refrescarVacio() {
+            const total = lista.querySelectorAll('.tarjeta-incidente').length;
+            document.getElementById('contPendientes').textContent = total;
+            document.getElementById('sinPendientes').classList.toggle('d-none', total > 0);
+        }
+
+        function retirarTarjeta(tarjeta) {
+            tarjeta.style.transition = 'opacity .25s, transform .25s';
+            tarjeta.style.opacity = '0';
+            tarjeta.style.transform = 'translateX(40px)';
+            setTimeout(() => { tarjeta.remove(); refrescarVacio(); }, 260);
+        }
+
+        // Prioridad desc → familias desc → más antigua primero (igual criterio que el servidor)
+        function ordenarTarjetas() {
+            [...lista.querySelectorAll('.tarjeta-incidente')]
+                .sort((a, b) =>
+                    (b.dataset.prioridad - a.dataset.prioridad) ||
+                    (b.dataset.familias - a.dataset.familias) ||
+                    (new Date(a.dataset.fecha) - new Date(b.dataset.fecha)))
+                .forEach(t => lista.appendChild(t));
+        }
+
+        function actualizarTiempos() {
+            document.querySelectorAll('.hace').forEach(el => {
+                const min = Math.max(0, Math.floor((Date.now() - new Date(el.dataset.utc).getTime()) / 60000));
+                el.textContent = min < 1 ? 'ahora'
+                    : min < 60 ? `hace ${min} min`
+                    : min < 1440 ? `hace ${Math.floor(min / 60)} h`
+                    : `hace ${Math.floor(min / 1440)} d`;
+            });
+        }
+
+        // ── Acción: enviar evaluación al servidor ───────────────────────────
+        async function evaluar(tarjeta, accion, observacion) {
+            const botones = tarjeta.querySelectorAll('button');
+            botones.forEach(b => b.disabled = true);
+
+            try {
+                // accion = 'Constatar' | 'Desestimar' → data-url-constatar | data-url-desestimar
+                const respuesta = await fetch(consola.dataset['url' + accion], {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({ id: tarjeta.dataset.id, observacion: observacion || '' })
+                });
+                if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+
+                const datos = await respuesta.json();
+                avisar(datos.mensaje, datos.ok);
+
+                if (datos.ok) {
+                    sumar(accion === 'Constatar' ? 'contConstatados' : 'contDesestimados', 1);
+                    if (navigator.vibrate) navigator.vibrate(40);
+                    retirarTarjeta(tarjeta);
+                } else if (datos.nuevoEstado) {
+                    retirarTarjeta(tarjeta); // otro evaluador ya la atendió
+                } else {
+                    botones.forEach(b => b.disabled = false);
+                }
+            } catch (error) {
+                avisar('No se pudo enviar. Revise su conexión e intente de nuevo.', false);
+                botones.forEach(b => b.disabled = false);
+            }
+        }
+
+        lista.addEventListener('click', e => {
+            const tarjeta = e.target.closest('.tarjeta-incidente');
+            if (!tarjeta) return;
+
+            if (e.target.closest('.accion-constatar')) {
+                evaluar(tarjeta, 'Constatar', null);
+            } else if (e.target.closest('.accion-desestimar')) {
+                tarjetaPendiente = tarjeta;
+                document.getElementById('modalCodigo').textContent = tarjeta.dataset.codigo;
+                document.getElementById('motivoDesestimar').value = '';
+                modalDesestimar.show();
+            }
+        });
+
+        document.getElementById('confirmarDesestimar').addEventListener('click', () => {
+            if (!tarjetaPendiente) return;
+            const tarjeta = tarjetaPendiente;
+            tarjetaPendiente = null;
+            modalDesestimar.hide();
+            evaluar(tarjeta, 'Desestimar', document.getElementById('motivoDesestimar').value.trim());
+        });
+
+        // ── Tiempo real (SignalR) ───────────────────────────────────────────
+        const estadoConexion = document.getElementById('estadoConexion');
+        function pintarConexion(clase, texto) {
+            estadoConexion.innerHTML = `<i class="bi bi-circle-fill ${clase}"></i> ${texto}`;
+        }
+
+        const conexion = new signalR.HubConnectionBuilder().withUrl('/emergenciaHub').withAutomaticReconnect().build();
+
+        conexion.on('NuevoIncidenteReportado', async datos => {
+            if (lista.querySelector(`[data-id="${datos.incidenteId}"]`)) return;
+            const respuesta = await fetch(`${consola.dataset.urlTarjeta}/${datos.incidenteId}`);
+            if (!respuesta.ok) return;
+
+            lista.insertAdjacentHTML('beforeend', await respuesta.text());
+            ordenarTarjetas();
+            actualizarTiempos();
+            refrescarVacio();
+            avisar(`Nueva alerta: ${datos.codigo} (${datos.severidad})`, true);
+            if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+        });
+
+        // Si otro evaluador o el panel cambia el estado, la alerta deja de estar pendiente
+        conexion.on('EstadoIncidenteActualizado', datos => {
+            const tarjeta = lista.querySelector(`[data-codigo="${datos.codigo}"]`);
+            if (tarjeta && datos.nuevoEstado !== 'Reportado') retirarTarjeta(tarjeta);
+        });
+
+        conexion.onreconnecting(() => pintarConexion('text-warning', 'Reconectando…'));
+        conexion.onreconnected(() => pintarConexion('text-success', 'En línea'));
+        conexion.onclose(() => pintarConexion('text-danger', 'Sin conexión'));
+        conexion.start()
+            .then(() => pintarConexion('text-success', 'En línea'))
+            .catch(() => pintarConexion('text-danger', 'Sin conexión'));
+
+        ordenarTarjetas();
+        actualizarTiempos();
+        setInterval(actualizarTiempos, 60000);
+    </script>
+}

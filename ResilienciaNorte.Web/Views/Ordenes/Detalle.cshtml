@@ -1,0 +1,145 @@
+@using ResilienciaNorte.Domain
+@model OrdenAtencion
+@{
+    ViewData["Title"] = $"Orden {Model.CodigoOrden}";
+    var inc = Model.Incidente;
+    int totalSolicitado = Model.Detalles.Sum(d => d.CantidadSolicitada);
+    int totalEntregado = Model.Detalles.Sum(d => d.CantidadEntregada);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard2-check text-primary"></i> Orden <span class="font-monospace">@Model.CodigoOrden</span></h2>
+        <p class="text-muted small mb-0">Cabecera y detalle de bienes BAH asignados</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Órdenes</a>
+</div>
+
+@if (TempData["MensajeExito"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle-fill me-1"></i> @TempData["MensajeExito"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["MensajeError"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-3">
+    <!-- MAESTRO: cabecera de la orden -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header card-header-resiliencia d-flex justify-content-between align-items-center">
+                <span>Cabecera</span>
+                <partial name="_BadgeEstadoOrden" model="Model.Estado" />
+            </div>
+            <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Incidente</span><strong>@inc?.CodigoIncidente</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Distrito</span><span>@inc?.Distrito?.Nombre</span></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Sector</span><span class="text-end">@inc?.SectorCritico</span></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Severidad</span><partial name="_BadgeSeveridad" model="inc?.Severidad" /></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Familias</span><strong class="text-danger">@inc?.FamiliasAfectadas</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Analista</span><span>@Model.UsuarioAnalistaId</span></li>
+                <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Emisión (UTC)</span><span>@Model.FechaEmision.ToString("dd/MM/yyyy HH:mm")</span></li>
+                @if (Model.FechaEntrega.HasValue)
+                {
+                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Entrega (UTC)</span><span>@Model.FechaEntrega.Value.ToString("dd/MM/yyyy HH:mm")</span></li>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Observaciones))
+                {
+                    <li class="list-group-item"><span class="text-muted d-block">Observaciones</span>@Model.Observaciones</li>
+                }
+            </ul>
+        </div>
+
+        <!-- Acciones según el estado -->
+        @if (Model.Estado == EstadoOrden.Aprobada)
+        {
+            <div class="d-grid gap-2">
+                <form asp-action="Despachar" asp-route-id="@Model.OrdenId" method="post"
+                      onsubmit="return confirm('Se descontará el stock del almacén y se registrará la salida en el Kardex. ¿Despachar la orden?');">
+                    <button type="submit" class="btn btn-warning w-100 fw-bold"><i class="bi bi-truck"></i> Despachar orden</button>
+                </form>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalAnular"><i class="bi bi-slash-circle"></i> Anular orden</button>
+            </div>
+        }
+        else if (Model.Estado == EstadoOrden.EnDespacho)
+        {
+            <form asp-action="Entregar" asp-route-id="@Model.OrdenId" method="post"
+                  onsubmit="return confirm('¿Confirmar la entrega de los bienes? El incidente pasará a Atendido.');">
+                <button type="submit" class="btn btn-success w-100 fw-bold"><i class="bi bi-check2-all"></i> Confirmar entrega</button>
+            </form>
+        }
+    </div>
+
+    <!-- DETALLE: bienes BAH asignados -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header card-header-resiliencia"><i class="bi bi-box-seam"></i> Bienes BAH asignados</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Bien</th>
+                            <th>Almacén</th>
+                            <th class="text-center">Solicitado</th>
+                            <th class="text-center">Entregado</th>
+                            <th>Obs.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in Model.Detalles)
+                        {
+                            <tr>
+                                <td class="small fw-bold">@d.Recurso?.CodigoBAH</td>
+                                <td>
+                                    @d.Recurso?.Nombre
+                                    <div class="small text-muted">@d.Recurso?.Categoria · @d.Recurso?.UnidadMedida</div>
+                                </td>
+                                <td><span class="badge bg-secondary">@d.Recurso?.Distrito?.Nombre</span></td>
+                                <td class="text-center fw-bold">@d.CantidadSolicitada</td>
+                                <td class="text-center @(d.CantidadEntregada >= d.CantidadSolicitada ? "text-success fw-bold" : "text-muted")">@d.CantidadEntregada</td>
+                                <td class="small text-muted">@d.Observaciones</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="3" class="text-end">Totales</td>
+                            <td class="text-center">@totalSolicitado</td>
+                            <td class="text-center">@totalEntregado</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de anulación -->
+<div class="modal fade" id="modalAnular" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="Anular" asp-route-id="@Model.OrdenId" method="post" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-slash-circle text-danger"></i> Anular @Model.CodigoOrden</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">El incidente volverá a estado Constatado y podrá recibir una nueva asignación.</p>
+                <label for="motivo" class="form-label small fw-bold">Motivo (opcional)</label>
+                <textarea id="motivo" name="motivo" class="form-control" rows="3" maxlength="200"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-danger">Anular orden</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,187 @@
+@model ResilienciaNorte.Web.Models.CrearOrdenViewModel
+@{
+    ViewData["Title"] = "Nueva Orden de Atención";
+    var inc = Model.Incidente!;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard2-plus text-primary"></i> Nueva Orden de Atención</h2>
+        <p class="text-muted small mb-0">Asigne los Bienes de Ayuda Humanitaria (BAH) al incidente constatado</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+</div>
+
+<div class="row g-3">
+    <!-- Cabecera de solo lectura: el incidente -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header card-header-resiliencia"><i class="bi bi-exclamation-diamond"></i> Incidente</div>
+            <div class="card-body small">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold font-monospace">@inc.CodigoIncidente</span>
+                    <partial name="_BadgeSeveridad" model="inc.Severidad" />
+                </div>
+                <div class="fw-bold">@inc.SectorCritico</div>
+                <div class="mb-2"><span class="badge bg-secondary">@inc.Distrito?.Nombre</span> <span class="badge bg-light text-dark border">@inc.TipoEvento</span></div>
+                <div class="mb-1"><i class="bi bi-people-fill text-danger"></i> <strong>@inc.FamiliasAfectadas</strong> familias afectadas</div>
+                <p class="text-muted mb-0">@inc.Descripcion</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maestro-Detalle: observaciones + lista de bienes -->
+    <div class="col-lg-8">
+        <form asp-action="Crear" method="post" id="formOrden" novalidate>
+            <input type="hidden" asp-for="IncidenteId" />
+
+            <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header card-header-resiliencia d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-box-seam"></i> Bienes BAH a asignar</span>
+                    <button type="button" id="btnAgregar" class="btn btn-sm btn-light"><i class="bi bi-plus-lg"></i> Agregar bien</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width: 260px;">Bien BAH</th>
+                                <th style="width: 140px;">Cantidad</th>
+                                <th style="min-width: 160px;">Observación</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="filasDetalle"></tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white small text-muted d-flex justify-content-between">
+                    <span><span id="totalLineas">0</span> bien(es) · <span id="totalUnidades">0</span> unidades</span>
+                    <span>El stock se descuenta recién al despachar la orden.</span>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body">
+                    <label asp-for="Observaciones" class="form-label small fw-bold">Observaciones de la orden</label>
+                    <textarea asp-for="Observaciones" class="form-control" rows="2" maxlength="300" placeholder="Indicaciones para el despacho (opcional)"></textarea>
+                    <span asp-validation-for="Observaciones" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a asp-action="Index" class="btn btn-light">Cancelar</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle"></i> Emitir orden</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const recursos = @Json.Serialize(Model.RecursosDisponibles.Select(r => new
+        {
+            id = r.RecursoId,
+            codigo = r.CodigoBAH,
+            nombre = r.Nombre,
+            unidad = r.UnidadMedida,
+            stock = r.StockDisponible,
+            almacen = r.Distrito?.Nombre
+        }));
+
+        const filasIniciales = @Json.Serialize(Model.Detalles.Select(d => new { recursoId = d.RecursoId, cantidad = d.Cantidad, observaciones = d.Observaciones }));
+
+        const cuerpo = document.getElementById('filasDetalle');
+
+        function escapar(texto) {
+            const d = document.createElement('div');
+            d.textContent = texto ?? '';
+            return d.innerHTML;
+        }
+
+        function agregarFila(recursoId, cantidad, observaciones) {
+            const opciones = recursos.map(r =>
+                `<option value="${r.id}" data-stock="${r.stock}" data-unidad="${escapar(r.unidad)}" ${r.id === recursoId ? 'selected' : ''}>` +
+                `${escapar(r.codigo)} · ${escapar(r.nombre)} (${escapar(r.almacen)}) — stock ${r.stock}</option>`).join('');
+
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>
+                    <select class="form-select form-select-sm sel-recurso" required>
+                        <option value="">-- Seleccione --</option>${opciones}
+                    </select>
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control inp-cantidad" min="1" value="${cantidad || ''}" required />
+                        <span class="input-group-text txt-unidad">uds.</span>
+                    </div>
+                    <small class="text-muted txt-stock"></small>
+                </td>
+                <td><input type="text" class="form-control form-control-sm inp-obs" maxlength="200" value="${escapar(observaciones)}" /></td>
+                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-quitar" title="Quitar"><i class="bi bi-trash"></i></button></td>`;
+            cuerpo.appendChild(fila);
+            sincronizar();
+        }
+
+        // Reasigna los nombres Detalles[i].* (así el model binder arma la lista), limita la cantidad
+        // al stock y evita elegir el mismo bien en dos filas.
+        function sincronizar() {
+            const filas = [...cuerpo.querySelectorAll('tr')];
+            const elegidos = filas.map(f => f.querySelector('.sel-recurso').value).filter(v => v);
+            let unidades = 0;
+
+            filas.forEach((fila, i) => {
+                const sel = fila.querySelector('.sel-recurso');
+                const cant = fila.querySelector('.inp-cantidad');
+                const obs = fila.querySelector('.inp-obs');
+                sel.name = `Detalles[${i}].RecursoId`;
+                cant.name = `Detalles[${i}].Cantidad`;
+                obs.name = `Detalles[${i}].Observaciones`;
+
+                [...sel.options].forEach(o => { o.disabled = o.value && o.value !== sel.value && elegidos.includes(o.value); });
+
+                const opcion = sel.selectedOptions[0];
+                const stock = opcion && opcion.value ? parseInt(opcion.dataset.stock, 10) : null;
+                fila.querySelector('.txt-unidad').textContent = opcion && opcion.value ? opcion.dataset.unidad : 'uds.';
+                fila.querySelector('.txt-stock').textContent = stock !== null ? `Disponible: ${stock}` : '';
+                if (stock !== null) cant.max = stock; else cant.removeAttribute('max');
+
+                unidades += parseInt(cant.value || '0', 10) || 0;
+            });
+
+            document.getElementById('totalLineas').textContent = filas.length;
+            document.getElementById('totalUnidades').textContent = unidades;
+        }
+
+        cuerpo.addEventListener('input', sincronizar);
+        cuerpo.addEventListener('change', sincronizar);
+        cuerpo.addEventListener('click', e => {
+            const quitar = e.target.closest('.btn-quitar');
+            if (!quitar) return;
+            quitar.closest('tr').remove();
+            if (!cuerpo.children.length) agregarFila();
+            sincronizar();
+        });
+
+        document.getElementById('btnAgregar').addEventListener('click', () => agregarFila());
+
+        // Validación previa al envío (el servidor repite todas las reglas)
+        document.getElementById('formOrden').addEventListener('submit', e => {
+            sincronizar();
+            const filas = [...cuerpo.querySelectorAll('tr')];
+            const incompleta = filas.some(f => !f.querySelector('.sel-recurso').value || !(parseInt(f.querySelector('.inp-cantidad').value, 10) > 0));
+            const excede = filas.some(f => {
+                const c = f.querySelector('.inp-cantidad');
+                return c.max && parseInt(c.value, 10) > parseInt(c.max, 10);
+            });
+            if (incompleta || excede) {
+                e.preventDefault();
+                alert(excede ? 'Una cantidad supera el stock disponible.' : 'Complete el bien y la cantidad de cada fila.');
+            }
+        });
+
+        if (filasIniciales.length) filasIniciales.forEach(f => agregarFila(f.recursoId, f.cantidad, f.observaciones));
+        else agregarFila();
+    </script>
+}
