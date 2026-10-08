@@ -1,12 +1,15 @@
 ﻿BD Local:
-Elimina las migraciones de la carpeta Migrations y ejecuta el siguiente comando en la consola del Administrador de paquetes:
+
+- Elimina las migraciones de la carpeta Migrations a mano
+
+- Ejecuta el siguiente comando en la consola del Administrador de paquetes:
+Drop-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web -Confirm:$false
+
+- Migracion Maestra Limpia:
 Add-Migration MigracionInicialCompleta -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web
 
-Drop-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web -Confirm:$false
+- Aplicar a la BD local:
 Update-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web
-
-
-
 
 
 BD MonsterASP:

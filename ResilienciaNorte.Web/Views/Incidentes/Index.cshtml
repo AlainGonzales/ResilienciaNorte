@@ -2,7 +2,6 @@
 @{
     ViewData["Title"] = "Monitoreo de Incidentes";
 
-    // Contadores por distrito para el semáforo inicial (excluye reportes desestimados)
     var conteoPorDistrito = Model
         .Where(i => i.Estado != "Desestimado")
         .GroupBy(i => i.DistritoId)
@@ -11,9 +10,9 @@
     string ObtenerColorSemaforo(int distritoId)
     {
         int count = conteoPorDistrito.ContainsKey(distritoId) ? conteoPorDistrito[distritoId] : 0;
-        if (count >= 4) return "alerta-rojo";     // Situación crítica o alto impacto
-        if (count >= 2) return "alerta-naranja";  // Alerta moderada / vigilancia
-        return "alerta-amarillo";                 // Situación leve / preventiva
+        if (count >= 4) return "alerta-rojo";
+        if (count >= 2) return "alerta-naranja";
+        return "alerta-amarillo";
     }
 
     string estadoActual = ViewBag.EstadoSeleccionado as string ?? "";
@@ -21,7 +20,6 @@
 }
 
 <style>
-    /* Panel lateral del Mapa Cartográfico */
     .mapa-card-container {
         background: #0f172a;
         border-radius: 12px;
@@ -45,7 +43,6 @@
         height: auto;
     }
 
-    /* Distritos interactivos */
     .distrito-overlay {
         cursor: pointer;
         opacity: 0.45;
@@ -55,45 +52,34 @@
         pointer-events: all;
     }
 
-        .distrito-overlay:hover {
-            opacity: 0.80 !important;
-            stroke: #0284c7 !important;
-            stroke-width: 4 !important;
-        }
-
-        .distrito-overlay.distrito-activo {
-            opacity: 0.90 !important;
-            stroke: #0284c7 !important;
-            stroke-width: 5 !important;
-            filter: drop-shadow(0 0 6px #0284c7);
-        }
-
-    /* Semáforo Territorial Dinámico */
-    .alerta-amarillo {
-        fill: #eab308;
+    .distrito-overlay:hover {
+        opacity: 0.80 !important;
+        stroke: #0284c7 !important;
+        stroke-width: 4 !important;
     }
 
-    .alerta-naranja {
-        fill: #f97316;
+    .distrito-overlay.distrito-activo {
+        opacity: 0.90 !important;
+        stroke: #0284c7 !important;
+        stroke-width: 5 !important;
+        filter: drop-shadow(0 0 6px #0284c7);
     }
 
-    .alerta-rojo {
-        fill: #ef4444;
-    }
+    .alerta-amarillo { fill: #eab308; }
+    .alerta-naranja { fill: #f97316; }
+    .alerta-rojo { fill: #ef4444; }
 
-    /* Scroll interno para la grilla de alertas */
     .tabla-scroll-wrap {
         max-height: 540px;
         overflow-y: auto;
     }
 
-    /* Animación de entrada SignalR */
+    /* CORRECTO (Escapado para Razor) */
     @@keyframes filaNueva {
         from {
             background-color: #fef08a;
             transform: translateY(-4px);
         }
-
         to {
             background-color: transparent;
             transform: translateY(0);
@@ -105,14 +91,9 @@
     }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-danger"></i> Monitoreo de Incidentes</h2>
-        <p class="text-muted small mb-0">Alertas y emergencias pluviales reportadas en la Provincia de Trujillo</p>
-    </div>
-    <a asp-action="Registrar" class="btn btn-danger shadow-sm">
-        <i class="bi bi-plus-lg me-1"></i> Reportar Incidente
-    </a>
+<div class="mb-3">
+    <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-danger"></i> Monitoreo de Incidentes</h2>
+    <p class="text-muted small mb-0">Alertas y emergencias pluviales reportadas en la Provincia de Trujillo</p>
 </div>
 
 <!-- DASHBOARD INTEGRAL EN 2 COLUMNAS (MAPA Y TABLA EN LA MISMA PANTALLA) -->
@@ -128,7 +109,6 @@
 
             <div class="mapa-lienzo-wrap">
                 <svg viewBox="0 0 1261 1247" class="mapa-svg" xmlns="http://www.w3.org/2000/svg">
-                    <!-- IMAGEN REAL DE FONDO -->
                     <image href="/images/mapa_trujillo_distritos_notittle_bn.png"
                            x="0" y="0" width="1261" height="1247"
                            preserveAspectRatio="none" />
@@ -241,11 +221,9 @@
 
     <!-- COLUMNA DERECHA: FILTRO DE ESTADO Y TABLA DE INCIDENTES -->
     <div class="col-xl-7 col-lg-7">
-        <!-- Filtros compactos: Se eliminó el select de distritos redundante -->
         <div class="card shadow-sm border-0 mb-3 bg-light">
             <div class="card-body p-2">
                 <form method="get" id="formFiltros" class="row g-2 align-items-center">
-                    <!-- Distrito preservado en campo oculto para mantener la selección del SVG -->
                     <input type="hidden" name="distritoId" id="inputDistrito" value="@distritoActual" />
 
                     <div class="col-sm-8 col-md-9">
@@ -267,7 +245,6 @@
             </div>
         </div>
 
-        <!-- Tabla de alertas con scroll interno -->
         <div class="card shadow-sm border-0">
             <div class="table-responsive tabla-scroll-wrap">
                 <table class="table table-hover align-middle mb-0" id="tablaIncidentes">
@@ -390,11 +367,9 @@
 </div>
 
 @section Scripts {
-    <!-- Cliente oficial de SignalR desde CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 
     <script>
-        // 1. Interacción del Croquis SVG con el Formulario de Filtros
         document.querySelectorAll('.distrito-overlay').forEach(shape => {
             shape.addEventListener('click', function() {
                 const distritoId = this.getAttribute('data-distrito');
@@ -413,14 +388,12 @@
             });
         });
 
-        // Resaltar el distrito en el SVG si ya viene filtrado en el request
         const distritoActualValor = document.getElementById('inputDistrito').value;
         if (distritoActualValor) {
             const poligono = document.getElementById(`dist-${distritoActualValor}`);
             if (poligono) poligono.classList.add('distrito-activo');
         }
 
-        // 2. Conexión de SignalR con el EmergenciaHub
         const conexionHub = new signalR.HubConnectionBuilder()
             .withUrl("/emergenciaHub")
             .withAutomaticReconnect()

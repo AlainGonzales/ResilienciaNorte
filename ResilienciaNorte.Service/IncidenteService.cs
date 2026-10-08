@@ -56,14 +56,13 @@ namespace ResilienciaNorte.Service
             if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
             {
                 int totalHoy = await _context.IncidentesEmergencia.CountAsync() + 1;
-                incidente.CodigoIncidente = $"ALT-{DateTime.UtcNow.Year}-{totalHoy:D4}";
+                incidente.CodigoIncidente = $"ALT-{TimeHelper.Ahora.Year}-{totalHoy:D4}";
             }
-
-            incidente.FechaRegistro = DateTime.UtcNow;
-            incidente.Estado = EstadoIncidente.Reportado;
 
             // Priorización automática (patrón Strategy): familias afectadas + quebrada
             incidente.Severidad = _clasificadorSeveridad.Clasificar(incidente).Etiqueta;
+            incidente.FechaRegistro = TimeHelper.Ahora;
+            incidente.Estado = EstadoIncidente.Reportado;
 
             _context.IncidentesEmergencia.Add(incidente);
             await _context.SaveChangesAsync();
@@ -103,8 +102,8 @@ namespace ResilienciaNorte.Service
                 DniCiudadano = dni.Trim(),
                 Telefono = telefono.Trim(),
                 PinHash = pinHash,
-                FechaCreacion = DateTime.UtcNow,
-                FechaExpiracion = DateTime.UtcNow.AddSeconds(30), // Ventana estricta de 30 segundos
+                FechaCreacion = TimeHelper.Ahora,
+                FechaExpiracion = TimeHelper.Ahora.AddSeconds(30), // Ventana estricta de 30 segundos
                 IntentosFallidos = 0,
                 FueUtilizado = false
             };
@@ -119,7 +118,7 @@ namespace ResilienciaNorte.Service
         public async Task<bool> ValidarOtpCiudadanoAsync(string codigoIncidente, string dni, string pinIngresado)
         {
             string hashIngresado = HashString(pinIngresado.Trim());
-            var ahora = DateTime.UtcNow;
+            var ahora = TimeHelper.Ahora;
 
             var otp = await _context.VerificacionesOtpCiudadano
                 .Where(v => v.CodigoIncidente == codigoIncidente.Trim().ToUpper() && v.DniCiudadano == dni.Trim() && !v.FueUtilizado)
