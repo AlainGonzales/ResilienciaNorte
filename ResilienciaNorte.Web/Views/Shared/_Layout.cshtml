@@ -19,8 +19,8 @@
             }
 
             body {
-                background-color: #f8fafc;
-                font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+                background-color: #eff5ff;
+                font-family:  'Roboto','Segoe UI', system-ui, -apple-system, sans-serif;
                 color: #1e293b;
                 min-height: 100vh;
                 display: flex;
@@ -122,6 +122,28 @@
                 padding: 1.5rem 2rem;
                 flex-grow: 1;
             }
+
+            /* Evaluador de Campo: en celular no hay menú lateral, el contenido ocupa todo el ancho */
+            @@media (max-width: 767.98px) {
+                .evaluador-responsive {
+                    margin-left: 0;
+                }
+            }
+
+            /* Celulares: márgenes de 16px para que el contenido no quede estrecho */
+            @@media (max-width: 575.98px) {
+                .content-sin-sidebar, .content-con-sidebar {
+                    padding: 1rem;
+                }
+            }
+        .badge-critico { background-color: #e74c3c; color: white; }
+        .badge-alto { background-color: #e67e22; color: white; }
+        .badge-moderado { background-color: #f1c40f; color: #2c3e50; }
+
+        /* Modales más anchos (Bootstrap los deja en 500 px) */
+        @@media (min-width: 576px) {
+            .modal-dialog { max-width: 700px; }
+        }
     </style>
 </head>
 <body>
@@ -129,6 +151,10 @@
         bool estaAutenticado = User.Identity != null && User.Identity.IsAuthenticated;
         bool esFuncionario = estaAutenticado && !User.IsInRole("Ciudadano");
         bool esAdmin = estaAutenticado && User.IsInRole("Administrador");
+
+        // El Evaluador de Campo no navega: solo ve su triaje, sin menú lateral
+        bool esEvaluadorCampo = esFuncionario && User.IsInRole("EvaluadorCampo") && !esAdmin;
+        bool mostrarMenu = esFuncionario;
 
         // Datos del usuario obtenidos de Identity
         UsuarioAplicacion? usuarioActual = null;
@@ -139,22 +165,22 @@
     }
 
     <!-- NAVBAR SUPERIOR -->
-    <header class="topbar-app sticky-top d-flex align-items-center px-4 justify-content-between">
+    <header class="topbar-app sticky-top d-flex align-items-center px-2 px-md-4 justify-content-between">
         <div class="d-flex align-items-center gap-4">
             <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-2 text-decoration-none" asp-controller="Home" asp-action="Index">
                 <i class="bi bi-shield-shaded text-danger fs-3"></i>
-                <span class="fs-4 tracking-tight">RESILIENCIA<span class="text-danger">NORTE</span></span>
+                <span class="fs-5 fs-md-4 tracking-tight">RESILIENCIA<span class="text-danger">NORTE</span></span>
             </a>
 
             <!-- ENLACES SUPERIORES: VISIBLES PARA CIUDADANOS Y VISITANTES -->
             @if (!esFuncionario)
             {
                 <nav class="d-flex gap-2">
-                    <a asp-controller="Home" asp-action="Index" class="btn btn-sm btn-link text-white text-decoration-none px-3">
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-sm btn-link text-white text-decoration-none px-3 d-none d-md-inline-block">
                         <i class="bi bi-house-door me-1"></i> Inicio
                     </a>
-                    <a asp-controller="Incidentes" asp-action="Portal" class="btn btn-sm btn-link text-white text-decoration-none px-3">
-                        <i class="bi bi-megaphone-fill text-warning me-1"></i> Reporte de Emergencia
+                    <a asp-controller="Incidentes" asp-action="Portal" class="btn btn-sm btn-link text-white text-decoration-none px-2 px-md-3">
+                        <i class="bi bi-megaphone-fill text-warning me-1"></i><span class="d-md-none">Reporte</span><span class="d-none d-md-inline">Reporte de Emergencia</span>
                     </a>
                 </nav>
             }
@@ -164,13 +190,6 @@
         <div class="d-flex align-items-center gap-3">
             @if (estaAutenticado)
             {
-                @* ENGRANAJE EXCLUSIVO DEL ADMINISTRADOR *@
-                @if (esAdmin)
-                {
-                    <a asp-controller="Admin" asp-action="Usuarios" class="btn btn-sm rounded-circle p-2" title="Configuración de Roles y Jurisdicciones">
-                        <i class="bi bi-gear-fill fs-6 text-warning"></i>
-                    </a>
-                }
 
                 @* DROPDOWN DE USUARIO (CLICK PARA DESPLEGAR CERRAR SESIÓN) *@
                 <div class="dropdown">
@@ -186,21 +205,6 @@
                             <small class="text-muted d-block text-truncate">@usuarioActual?.Email</small>
                             <span class="badge bg-danger mt-1">@usuarioActual?.NivelJurisdiccion</span>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-controller="Evaluacion" asp-action="Consola">
-                                <i class="bi bi-clipboard2-pulse me-1"></i> Consola de Campo
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-controller="Ordenes" asp-action="Index">
-                                <i class="bi bi-clipboard2-check me-1"></i> Órdenes de Atención
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-controller="Recursos" asp-action="Index">
-                                <i class="bi bi-box-seam me-1"></i> Almacén de Contingencia (BAH)
-                            </a>
-                        </li>
                         <li class="mt-2">
                             <form asp-controller="Cuentas" asp-action="Logout" method="post" class="m-0">
                                 @Html.AntiForgeryToken()
@@ -215,8 +219,8 @@
             }
             else
             {
-                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAuth">
-                    <i class="bi bi-person-fill-lock me-1"></i> Iniciar Sesión
+                <button type="button" class="btn btn-danger btn-sm px-2 px-md-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAuth">
+                    <i class="bi bi-person-fill-lock me-1"></i><span class="d-md-none">Login</span><span class="d-none d-md-inline">Iniciar Sesión</span>
                 </button>
             }
         </div>
@@ -224,9 +228,9 @@
 
     <div class="d-flex flex-grow-1">
         <!-- BARRA LATERAL IZQUIERDA (SOLO FUNCIONARIOS LOGUEADOS) -->
-        @if (esFuncionario)
+        @if (mostrarMenu)
         {
-            <aside class="sidebar-app shadow-sm">
+            <aside class="sidebar-app shadow-sm @(esEvaluadorCampo ? "d-none d-md-block" : "")">
                 <!-- 1. FICHA SUPERIOR DEL USUARIO (ESTILO ADMINOR) -->
                 <div class="sidebar-user-card">
                     <div class="sidebar-user-avatar">
@@ -244,36 +248,53 @@
                 </div>
 
                 <!-- 2. NAVEGACIÓN Y MENÚS -->
+                @{
+                    var ctrlActual = ViewContext.RouteData.Values["controller"]?.ToString();
+                    var accionActual = ViewContext.RouteData.Values["action"]?.ToString();
+                }
                 <small class="text-uppercase text-muted fw-bold px-2 d-block mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">CENTRO DE COMANDO</small>
 
-                @if (User.IsInRole("Administrador") || User.IsInRole("OperadorCOEP") || User.IsInRole("Analista") || User.IsInRole("EvaluadorCampo") || User.IsInRole("Coordinador"))
+                @if (User.IsInRole("Administrador") || User.IsInRole("Analista"))
                 {
-                    <a asp-controller="Home" asp-action="Index" class="sidebar-link">
-                        <i class="bi bi-speedometer2 text-danger fs-5"></i> Panel Principal
+                    <a asp-controller="Incidentes" asp-action="Index" class="sidebar-link @(ctrlActual == "Incidentes" ? "active" : "")">
+                        <i class="bi bi-broadcast text-danger fs-5"></i> Monitoreo de Reportes
                     </a>
                 }
 
-                @if (User.IsInRole("Administrador") || User.IsInRole("OperadorCOEP") || User.IsInRole("Analista"))
+                @if (User.IsInRole("Administrador") || User.IsInRole("Analista"))
                 {
-                    <a asp-controller="Incidentes" asp-action="Index" class="sidebar-link">
-                        <i class="bi bi-broadcast text-danger fs-5"></i> Monitoreo de Alertas
+                    <a asp-controller="Incidencias" asp-action="Index" class="sidebar-link @(ctrlActual == "Incidencias" ? "active" : "")">
+                        <i class="bi bi-collection text-danger fs-5"></i> Incidencias
                     </a>
                 }
 
-                @if (User.IsInRole("Administrador") || User.IsInRole("EvaluadorCampo") || User.IsInRole("Coordinador"))
+                @if (User.IsInRole("Administrador") || User.IsInRole("EvaluadorCampo"))
                 {
-                    <a asp-controller="Edan" asp-action="ConsolaCampo" class="sidebar-link">
-                        <i class="bi bi-clipboard-pulse text-danger fs-5"></i> Triaje Rápido EDAN
+                    <a asp-controller="Triaje" asp-action="Index" class="sidebar-link @(ctrlActual == "Triaje" ? "active" : "")">
+                        <i class="bi bi-clipboard-pulse text-danger fs-5"></i> Triaje
                     </a>
                 }
 
-                @if (User.IsInRole("Administrador") || User.IsInRole("LogisticoAlmacen") || User.IsInRole("Coordinador"))
+                @* Almacén BAH por rol: el logístico ve existencias y despachos; el coordinador, solicitudes y kardex *@
+                @if (User.IsInRole("Administrador") || User.IsInRole("Coordinador"))
                 {
-                    <a asp-controller="Recursos" asp-action="Index" class="sidebar-link">
-                        <i class="bi bi-box-seam text-danger fs-5"></i> Almacén BAH
+                    <a asp-controller="Recursos" asp-action="Solicitudes" class="sidebar-link @(ctrlActual == "Recursos" && accionActual == "Solicitudes" ? "active" : "")">
+                        <i class="bi bi-arrow-repeat text-danger fs-5"></i> Solicitudes
                     </a>
-                    <a asp-controller="Recursos" asp-action="Solicitudes" class="sidebar-link">
-                        <i class="bi bi-journal-text text-danger fs-5"></i> Reabastecimiento
+                    <a asp-controller="Recursos" asp-action="Kardex" class="sidebar-link @(ctrlActual == "Recursos" && accionActual == "Kardex" ? "active" : "")">
+                        <i class="bi bi-journal-text text-danger fs-5"></i> Kardex
+                    </a>
+                }
+                @if (User.IsInRole("LogisticoAlmacen"))
+                {
+                    <a asp-controller="Recursos" asp-action="Solicitudes" asp-route-estado="Aprobada" class="sidebar-link @(ctrlActual == "Recursos" && accionActual == "Solicitudes" ? "active" : "")">
+                        <i class="bi bi-truck text-danger fs-5"></i> Despachos
+                    </a>
+                }
+                @if (User.IsInRole("Administrador") || User.IsInRole("LogisticoAlmacen"))
+                {
+                    <a asp-controller="Recursos" asp-action="Index" class="sidebar-link @(ctrlActual == "Recursos" && accionActual == "Index" ? "active" : "")">
+                        <i class="bi bi-box-seam text-danger fs-5"></i> Existencias
                     </a>
                 }
 
@@ -281,10 +302,10 @@
                 {
                     <div class="border-top my-3"></div>
                     <small class="text-uppercase text-muted fw-bold px-2 d-block mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">SEGURIDAD Y AUDITORÍA</small>
-                    <a asp-controller="Admin" asp-action="Usuarios" class="sidebar-link">
+                    <a asp-controller="Admin" asp-action="Usuarios" class="sidebar-link @(ctrlActual == "Admin" && accionActual == "Usuarios" ? "active" : "")">
                         <i class="bi bi-shield-lock-fill text-danger fs-5"></i> Control de Usuarios
                     </a>
-                    <a asp-controller="Admin" asp-action="Auditoria" class="sidebar-link">
+                    <a asp-controller="Admin" asp-action="Auditoria" class="sidebar-link @(ctrlActual == "Admin" && accionActual == "Auditoria" ? "active" : "")">
                         <i class="bi bi-shield-check text-danger fs-5"></i> Bitácora de Auditoría
                     </a>
                 }
@@ -292,7 +313,7 @@
         }
 
         <!-- CONTENIDO PRINCIPAL -->
-        <main class="@(esFuncionario ? "content-con-sidebar" : "content-sin-sidebar")">
+        <main class="@(esEvaluadorCampo ? "content-con-sidebar evaluador-responsive" : mostrarMenu ? "content-con-sidebar" : "content-sin-sidebar")">
             @if (TempData["Mensaje"] != null)
             {
                 <div class="alert alert-success alert-dismissible fade show shadow-sm py-2" role="alert">
@@ -300,6 +321,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             }
+            <!-- Aviso de cambios en vivo: el usuario decide cuándo actualizar, para no perder lo que tiene abierto -->
+            <div id="bannerCambios" class="alert alert-info py-2 d-none d-flex justify-content-between align-items-center" role="status">
+                <span><i class="bi bi-arrow-repeat me-2"></i><span id="textoBannerCambios"></span></span>
+                <span class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">Actualizar</button>
+                    <button type="button" class="btn-close" aria-label="Cerrar" onclick="document.getElementById('bannerCambios').classList.add('d-none')"></button>
+                </span>
+            </div>
             @RenderBody()
         </main>
     </div>
@@ -380,7 +409,7 @@
                                     </div>
                                 </div>
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-success fw-bold">Crear Cuenta Ciudadana</button>
+                                    <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-floppy me-1"></i>Crear Cuenta Ciudadana</button>
                                 </div>
                             </form>
                         </div>
@@ -394,6 +423,25 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        // Cada pantalla indica qué módulos le interesan; solo esos cambios muestran el aviso
+        const modulosPantalla = @Html.Raw(System.Text.Json.JsonSerializer.Serialize((ViewData["ModulosTiempoReal"] as string ?? "").Split(',', System.StringSplitOptions.RemoveEmptyEntries)));
+        if (modulosPantalla.length > 0) {
+            const conexionOperativa = new signalR.HubConnectionBuilder()
+                .withUrl("/emergenciaHub")
+                .withAutomaticReconnect()
+                .build();
+
+            conexionOperativa.on("CambioOperativo", function (cambio) {
+                if (!modulosPantalla.includes(cambio.modulo)) return;
+                document.getElementById("textoBannerCambios").textContent = `Hay cambios recientes: ${cambio.detalle}`;
+                document.getElementById("bannerCambios").classList.remove("d-none");
+            });
+
+            conexionOperativa.start().catch(err => console.error("Error al conectar SignalR operativo:", err));
+        }
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

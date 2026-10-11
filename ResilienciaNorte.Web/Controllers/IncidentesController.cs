@@ -14,24 +14,38 @@ namespace ResilienciaNorte.Web.Controllers
         private readonly IIncidenteService _incidenteService;
         private readonly IHubContext<EmergenciaHub> _hubContext;
         private readonly UserManager<UsuarioAplicacion> _userManager;
+        private readonly IAuditoriaService _auditoria;
 
-        public IncidentesController(IIncidenteService incidenteService, IHubContext<EmergenciaHub> hubContext, UserManager<UsuarioAplicacion> userManager)
+        public IncidentesController(IIncidenteService incidenteService, IHubContext<EmergenciaHub> hubContext, UserManager<UsuarioAplicacion> userManager, IAuditoriaService auditoria)
         {
             _incidenteService = incidenteService;
             _hubContext = hubContext;
             _userManager = userManager;
+            _auditoria = auditoria;
         }
 
         // 1. Dashboard Provincial: Solo para funcionarios autenticados
         [Authorize]
-        public async Task<IActionResult> Index(int? distritoId, string? estado)
+        public async Task<IActionResult> Index(int? distritoId, string? estado, string? tipo)
         {
             var distritos = await _incidenteService.ObtenerDistritosAsync();
             ViewBag.Distritos = new SelectList(distritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", distritoId);
             ViewBag.DistritoSeleccionado = distritoId;
+
+            // El analista distrital solo puede agrupar en incidencias cuando filtra su propio distrito
+            var usuario = await _userManager.GetUserAsync(User);
+            bool esAnalistaDistrital = User.IsInRole("Analista") && !User.IsInRole("Administrador")
+                                       && usuario?.NivelJurisdiccion == "Distrital";
+            ViewBag.PuedeCrearIncidencia = !esAnalistaDistrital || (usuario?.DistritoId != null && distritoId == usuario.DistritoId);
             ViewBag.EstadoSeleccionado = estado ?? string.Empty;
+            ViewBag.TipoSeleccionado = tipo ?? string.Empty;
+            // Los tipos salen de los reportes existentes: si aparece un tipo nuevo, el combo lo muestra solo
+            ViewBag.Tipos = (await _incidenteService.ObtenerTodosAsync(null, null))
+                .Select(i => i.TipoEvento).Distinct().OrderBy(t => t).ToList();
 
             var incidentes = await _incidenteService.ObtenerTodosAsync(distritoId, estado);
+            if (!string.IsNullOrEmpty(tipo))
+                incidentes = incidentes.Where(i => i.TipoEvento == tipo).ToList();
             return View(incidentes);
         }
 
@@ -73,6 +87,8 @@ namespace ResilienciaNorte.Web.Controllers
             if (ModelState.IsValid)
             {
                 var nuevo = await _incidenteService.RegistrarIncidenteAsync(incidente);
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "INSERT", "Incidentes",
+                    $"Reporte {nuevo.CodigoIncidente} · {nuevo.TipoEvento} · DNI {nuevo.DniCiudadano}");
                 var distritos = await _incidenteService.ObtenerDistritosAsync();
                 var nombreDistrito = distritos.FirstOrDefault(d => d.DistritoId == nuevo.DistritoId)?.Nombre ?? "Distrito";
 
@@ -89,6 +105,13 @@ namespace ResilienciaNorte.Web.Controllers
                     severidad = nuevo.Severidad,
                     familias = nuevo.FamiliasAfectadas,
                     fecha = nuevo.FechaRegistro.ToString("dd/MM/yyyy HH:mm"),
+                    fechaIso = nuevo.FechaRegistro.ToString("o"),
+                    responsable = "Analista",
+                    descripcion = nuevo.Descripcion,
+                    direccion = nuevo.DireccionReferencia,
+                    nombre = nuevo.NombreCiudadano,
+                    dni = nuevo.DniCiudadano,
+                    telefono = nuevo.Telefono,
                     estado = nuevo.Estado
                 });
 
@@ -129,6 +152,8 @@ namespace ResilienciaNorte.Web.Controllers
             }
 
             string pin = await _incidenteService.GenerarOtpCiudadanoAsync(codigoIncidente, dni, incidente.Telefono ?? "999999999");
+            await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "INSERT", "Seguridad",
+                $"OTP generado para {codigoIncidente} · DNI {dni}");
             TempData["PinSimulado"] = pin;
             TempData["CodigoIncidente"] = incidente.CodigoIncidente;
             TempData["DniCiudadano"] = dni;
@@ -152,6 +177,9 @@ namespace ResilienciaNorte.Web.Controllers
         public async Task<IActionResult> ValidarOtp(string codigoIncidente, string dni, string pin)
         {
             bool esValido = await _incidenteService.ValidarOtpCiudadanoAsync(codigoIncidente, dni, pin);
+            await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(),
+                esValido ? "OTP_VALIDO" : "OTP_FALLIDO", "Seguridad",
+                $"{(esValido ? "OTP validado" : "OTP incorrecto")} para {codigoIncidente} · DNI {dni}");
             if (!esValido)
             {
                 ViewBag.Error = "PIN incorrecto o expirado (recuerde que dura 30 segundos). Solicite uno nuevo.";
@@ -169,27 +197,6 @@ namespace ResilienciaNorte.Web.Controllers
             var incidente = await _incidenteService.ObtenerPorCodigoAsync(codigo);
             if (incidente == null) return RedirectToAction(nameof(Consultar));
             return View(incidente);
-        }
-
-        // 3. Operación de cambio de estado: Exclusivo para funcionarios autenticados
-        [HttpPost]
-        [Authorize]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CambiarEstado(int id, string nuevoEstado)
-        {
-            await _incidenteService.CambiarEstadoAsync(id, nuevoEstado);
-            var inc = await _incidenteService.ObtenerPorIdAsync(id);
-
-            if (inc != null)
-            {
-                await _hubContext.Clients.All.SendAsync("EstadoIncidenteActualizado", new
-                {
-                    codigo = inc.CodigoIncidente,
-                    nuevoEstado = inc.Estado
-                });
-            }
-
-            return RedirectToAction(nameof(Index));
         }
 
         [AllowAnonymous]

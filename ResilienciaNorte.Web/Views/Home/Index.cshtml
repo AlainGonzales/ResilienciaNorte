@@ -10,16 +10,23 @@
     <!-- Notificaciones del Sistema -->
     @if (TempData["ExitoRegistro"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show py-2 mb-3">
-            <i class="bi bi-check-circle-fill me-2"></i> @TempData["ExitoRegistro"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-success py-2 mb-3 d-flex justify-content-between align-items-center" role="alert">
+            <span><i class="bi bi-check-circle-fill me-2"></i> @TempData["ExitoRegistro"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+    }
+    @if (TempData["ErrorRegistro"] != null)
+    {
+        <div class="alert alert-danger py-2 mb-3 d-flex justify-content-between align-items-center" role="alert">
+            <span><i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["ErrorRegistro"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
         </div>
     }
     @if (TempData["ErrorLogin"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show py-2 mb-3">
-            <i class="bi bi-exclamation-octagon-fill me-2"></i> @TempData["ErrorLogin"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="alert alert-danger py-2 mb-3 d-flex justify-content-between align-items-center" role="alert">
+            <span><i class="bi bi-exclamation-octagon-fill me-2"></i> @TempData["ErrorLogin"]</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
         </div>
     }
 
@@ -224,7 +231,7 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light small">
+                        <thead class="table-dark small">
                             <tr>
                                 <th>Código</th>
                                 <th>Tipo de Evento</th>
@@ -281,7 +288,7 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light small">
+                        <thead class="table-dark small">
                             <tr>
                                 <th>Código</th>
                                 <th>Tipo de Evento</th>
@@ -409,7 +416,7 @@
                                 </div>
                             </div>
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-success fw-bold">Crear Cuenta Ciudadana</button>
+                                <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-floppy me-1"></i>Crear Cuenta Ciudadana</button>
                             </div>
                         </form>
                     </div>

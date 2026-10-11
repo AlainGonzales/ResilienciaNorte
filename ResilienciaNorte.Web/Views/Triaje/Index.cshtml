@@ -1,0 +1,266 @@
+@using ResilienciaNorte.Domain
+@model IEnumerable<Incidencia>
+@{
+    ViewData["Title"] = "Triaje";
+    ViewData["ModulosTiempoReal"] = "Incidentes";
+    var lista = Model.ToList();
+    var pendientes = lista.Where(i => i.Estado == EstadoIncidencia.Asignada).ToList();
+    var resueltas = lista.Where(i => i.Estado != EstadoIncidencia.Asignada).ToList();
+    bool esAdmin = User.IsInRole("Administrador");
+}
+
+<div class="mb-3">
+    <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-clipboard-pulse text-danger"></i> Triaje</h2>
+    <p class="text-muted small mb-0">@(esAdmin ? "Incidencias asignadas a los evaluadores de campo" : "Incidencias que le fueron asignadas para verificación en campo")</p>
+</div>
+
+@if (TempData["MensajeExito"] != null)
+{
+    <div class="alert alert-success py-2 d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-check-circle-fill me-1"></i> @TempData["MensajeExito"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+@if (TempData["MensajeError"] != null)
+{
+    <div class="alert alert-danger py-2 d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm text-center py-2">
+            <div class="fs-3 fw-bold text-danger">@pendientes.Count</div>
+            <div class="small text-muted">Por verificar</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="card border-0 shadow-sm text-center py-2">
+            <div class="fs-3 fw-bold text-success">@resueltas.Count(i => i.Estado == EstadoIncidencia.Constatada || i.Estado == EstadoIncidencia.Atendida)</div>
+            <div class="small text-muted">Constatadas</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm text-center py-2">
+            <div class="fs-3 fw-bold text-secondary">@resueltas.Count(i => i.Estado == EstadoIncidencia.Desestimada)</div>
+            <div class="small text-muted">Desestimadas</div>
+        </div>
+    </div>
+</div>
+
+<h6 class="fw-bold text-uppercase text-muted small mb-2">Pendientes de verificar (@pendientes.Count)</h6>
+@if (!pendientes.Any())
+{
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body text-center text-muted py-4">No tiene incidencias pendientes.</div>
+    </div>
+}
+<div class="row g-3 mb-4">
+    @foreach (var inc in pendientes)
+    {
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <span class="font-monospace fw-bold small">@inc.Codigo</span>
+                        <span class="badge bg-light text-dark border">@inc.Reportes.Count reporte(s)</span>
+                    </div>
+                    <h5 class="fw-bold mb-1">@inc.Sector</h5>
+                    <div class="small mb-2">
+                        <span class="badge bg-secondary">@inc.Distrito?.Nombre</span>
+                        <span class="badge bg-light text-dark border">@inc.TipoEvento</span>
+                        <span class="badge bg-danger">@inc.Reportes.Sum(r => r.FamiliasAfectadas) fam.</span>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(inc.Observacion))
+                    {
+                        <p class="small text-muted mb-2"><i class="bi bi-chat-left-text"></i> @inc.Observacion</p>
+                    }
+
+                    <details class="mb-3">
+                        <summary class="small fw-bold text-primary" style="cursor: pointer;">Ver reportes agrupados</summary>
+                        <ul class="list-unstyled small mt-2 mb-0">
+                            @foreach (var r in inc.Reportes.OrderBy(r => r.FechaRegistro))
+                            {
+                                <li class="border-top py-2">
+                                    <div class="fw-bold">@r.CodigoIncidente <span class="text-muted fw-normal">· @r.NombreCiudadano</span></div>
+                                    <div><i class="bi bi-geo-alt"></i> @(r.DireccionReferencia ?? r.SectorCritico)</div>
+                                    @if (!string.IsNullOrWhiteSpace(r.Telefono))
+                                    {
+                                        <div><i class="bi bi-telephone"></i> <a href="tel:@r.Telefono">@r.Telefono</a></div>
+                                    }
+                                    <div class="text-muted">@r.Descripcion</div>
+                                </li>
+                            }
+                        </ul>
+                    </details>
+
+                    <div class="mt-auto d-grid d-sm-flex gap-2">
+                        <button type="button" class="btn btn-success w-100 py-2 fw-bold flex-fill"
+                                data-bs-toggle="modal" data-bs-target="#modalFicha"
+                                data-id="@inc.IncidenciaId" data-codigo="@inc.Codigo"
+                                data-familias="@inc.Reportes.Sum(r => r.FamiliasAfectadas)">
+                            <i class="bi bi-check-circle"></i> Constatar
+                        </button>
+                        <button type="button" class="btn btn-outline-danger w-100 py-2 fw-bold flex-fill"
+                                data-bs-toggle="modal" data-bs-target="#modalDesestimar"
+                                data-id="@inc.IncidenciaId" data-codigo="@inc.Codigo">
+                            <i class="bi bi-x-circle"></i> Desestimar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (resueltas.Any())
+{
+    <h6 class="fw-bold text-uppercase text-muted small mb-2">Resueltas (@resueltas.Count)</h6>
+    <div class="card border-0 shadow-sm mb-4">
+        <ul class="list-group list-group-flush">
+            @foreach (var inc in resueltas)
+            {
+                <li class="list-group-item py-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <div>
+                            <span class="font-monospace fw-bold small">@inc.Codigo</span>
+                            <span class="small text-muted ms-1">@inc.Sector · @inc.Reportes.Count reporte(s)</span>
+                        </div>
+                        @if (inc.Estado == EstadoIncidencia.Atendida)
+                        {
+                            <span class="badge bg-info text-dark">Atendida</span>
+                        }
+                        else if (inc.Estado == EstadoIncidencia.Constatada)
+                        {
+                            <span class="badge bg-success">Constatada</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Desestimada</span>
+                        }
+                    </div>
+                    @if (inc.FichaEdan != null)
+                    {
+                        <div class="small mt-1">
+                            <i class="bi bi-people"></i> <strong>@inc.FichaEdan.FamiliasAfectadas</strong> familias ·
+                            @inc.FichaEdan.ViviendasAfectadas viviendas · @inc.FichaEdan.PersonasAfectadas personas
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(inc.ObservacionResolucion))
+                    {
+                        <div class="small text-muted mt-1"><i class="bi bi-chat-left-text"></i> @inc.ObservacionResolucion</div>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+<!-- Modal Ficha EDAN: se completa al constatar la incidencia -->
+<div class="modal fade" id="modalFicha" tabindex="-1" aria-labelledby="tituloFicha" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form asp-action="Constatar" method="post">
+                <input type="hidden" name="id" id="fichaId" />
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fs-6" id="tituloFicha">Ficha EDAN · <span id="fichaCodigo"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Registre lo verificado en campo. Estos totales reemplazan a los que indicaron los vecinos.</p>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-12 col-sm-4">
+                            <label for="fichaFamilias" class="form-label small fw-bold">Familias afectadas *</label>
+                            <input type="number" name="familiasAfectadas" id="fichaFamilias" min="0" required inputmode="numeric" class="form-control" />
+                        </div>
+                        <div class="col-6 col-sm-4">
+                            <label for="fichaViviendas" class="form-label small fw-bold">Viviendas *</label>
+                            <input type="number" name="viviendasAfectadas" id="fichaViviendas" min="0" required inputmode="numeric" class="form-control" />
+                        </div>
+                        <div class="col-6 col-sm-4">
+                            <label for="fichaPersonas" class="form-label small fw-bold">Personas *</label>
+                            <input type="number" name="personasAfectadas" id="fichaPersonas" min="0" required inputmode="numeric" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="fichaFecha" class="form-label small fw-bold">Fecha de visita *</label>
+                        <input type="date" name="fechaVisita" id="fichaFecha" required class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="mb-2">
+                        <label for="fichaNecesidades" class="form-label small fw-bold">Necesidades urgentes</label>
+                        <textarea name="necesidadesUrgentes" id="fichaNecesidades" rows="2" maxlength="300" class="form-control" placeholder="Ej: agua, abrigo, evacuación de 3 familias"></textarea>
+                    </div>
+                    <div class="mb-0">
+                        <label for="fichaObservaciones" class="form-label small fw-bold">Observaciones</label>
+                        <textarea name="observaciones" id="fichaObservaciones" rows="2" maxlength="500" class="form-control"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold"><i class="bi bi-floppy me-1"></i>Guardar ficha y constatar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal compartido: motivo obligatorio para desestimar -->
+<div class="modal fade" id="modalDesestimar" tabindex="-1" aria-labelledby="tituloDesestimar" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-action="Desestimar" method="post">
+                <input type="hidden" name="id" id="desestimarId" />
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fs-6" id="tituloDesestimar">Desestimar incidencia</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small mb-2">Incidencia <strong id="desestimarCodigo"></strong>. Indique el motivo por el que no se constata en campo.</p>
+                    <label for="observacionDesestimar" class="form-label small fw-bold">Motivo *</label>
+                    <textarea name="observacion" id="observacionDesestimar" rows="3" maxlength="300" required
+                              class="form-control" placeholder="Ej: No se encontró daño en la zona; el reporte corresponde a otra quebrada"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-floppy me-1"></i>Confirmar desestimación</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const modalDesestimar = document.getElementById("modalDesestimar");
+        modalDesestimar.addEventListener("show.bs.modal", function (event) {
+            const boton = event.relatedTarget;
+            document.getElementById("desestimarId").value = boton.dataset.id;
+            document.getElementById("desestimarCodigo").textContent = boton.dataset.codigo;
+            document.getElementById("observacionDesestimar").value = "";
+        });
+        const modalFicha = document.getElementById("modalFicha");
+        modalFicha.addEventListener("show.bs.modal", function (event) {
+            const boton = event.relatedTarget;
+            document.getElementById("fichaId").value = boton.dataset.id;
+            document.getElementById("fichaCodigo").textContent = boton.dataset.codigo;
+            // Propuesta inicial: la suma de los reportes; el evaluador la corrige con lo verificado
+            document.getElementById("fichaFamilias").value = boton.dataset.familias;
+            document.getElementById("fichaViviendas").value = "";
+            document.getElementById("fichaPersonas").value = "";
+            document.getElementById("fichaNecesidades").value = "";
+            document.getElementById("fichaObservaciones").value = "";
+        });
+        modalFicha.addEventListener("shown.bs.modal", function () {
+            document.getElementById("fichaViviendas").focus();
+        });
+
+        modalDesestimar.addEventListener("shown.bs.modal", function () {
+            document.getElementById("observacionDesestimar").focus();
+        });
+    </script>
+}

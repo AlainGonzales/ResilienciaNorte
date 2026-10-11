@@ -1,6 +1,7 @@
 ﻿@model IEnumerable<ResilienciaNorte.Web.Controllers.UsuarioGestionViewModel>
 @{
     ViewData["Title"] = "Control de Usuarios y Permisos";
+    ViewData["ModulosTiempoReal"] = "Seguridad";
     var distritos = ViewBag.Distritos as List<ResilienciaNorte.Domain.Distrito> ?? new();
     var roles = ViewBag.RolesDisponibles as List<string> ?? new();
 }
@@ -12,21 +13,113 @@
         </h3>
         <p class="text-muted small mb-0">Gestión de identidades, elevación de privilegios y asignación de jurisdicción operativa</p>
     </div>
-    <div class="d-flex gap-2">
-        <a asp-action="Auditoria" class="btn btn-outline-dark btn-sm fw-semibold">
-            <i class="bi bi-shield-check me-1"></i> Ver Bitácora de Auditoría
-        </a>
+</div>
+
+@if (TempData["Credenciales"] != null)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-start" role="alert">
+        <span><i class="bi bi-key-fill me-1"></i> <strong>Cuenta creada.</strong> Entregue estas credenciales; no se volverán a mostrar. @TempData["Credenciales"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+@if (TempData["MensajeError"] != null)
+{
+    <div class="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+
+<!-- Nuevo usuario de personal: el correo y la contraseña se generan según rol y jurisdicción -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form asp-action="CrearUsuario" method="post">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fs-6">Nuevo usuario de personal</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">El correo y la contraseña se generan según el rol y la jurisdicción. Se muestran una sola vez al crear la cuenta.</p>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">DNI *</label>
+                        <input type="text" name="dni" class="form-control" required maxlength="8" pattern="\d{8}" inputmode="numeric" placeholder="8 dígitos" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Nombre completo *</label>
+                        <input type="text" name="nombreCompleto" class="form-control" required maxlength="120" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Rol *</label>
+                        <select name="rol" class="form-select" required>
+                            <option value="Analista">Analista</option>
+                            <option value="Coordinador">Coordinador</option>
+                            <option value="EvaluadorCampo">Evaluador de Campo</option>
+                            <option value="LogisticoAlmacen">Logístico de Almacén</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Nivel jurisdiccional *</label>
+                        <select name="nivel" class="form-select" required>
+                            <option value="Distrital">Distrital</option>
+                            <option value="Provincial">Provincial (COEP)</option>
+                            <option value="Regional">Regional (COER)</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold">Distrito (si es distrital)</label>
+                        <select name="distritoId" class="form-select">
+                            <option value="">-- No aplica --</option>
+                            @foreach (var d in distritos)
+                            {
+                                <option value="@d.DistritoId">@d.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-person-check me-1"></i>Crear usuario</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
+<!-- Filtros: nivel jurisdiccional y, si es distrital, sede -->
+<form method="get" class="row g-2 align-items-end mb-3" id="formFiltrosUsuarios">
+    <div class="col-12 col-md-4 col-xl-3">
+        <label class="form-label small fw-bold mb-1">Nivel jurisdiccional</label>
+        <select name="nivel" class="form-select form-select-sm" onchange="this.form.distritoId.disabled = this.value !== 'Distrital'; this.form.submit()">
+            <option value="">Todos los niveles</option>
+            <option value="Distrital" selected="@(ViewBag.NivelSeleccionado == "Distrital")">Distrital</option>
+            <option value="Provincial" selected="@(ViewBag.NivelSeleccionado == "Provincial")">Provincial (COEP)</option>
+            <option value="Regional" selected="@(ViewBag.NivelSeleccionado == "Regional")">Regional (COER)</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-4 col-xl-3">
+        <label class="form-label small fw-bold mb-1">Sede (si es distrital)</label>
+        <select name="distritoId" class="form-select form-select-sm" disabled="@(ViewBag.NivelSeleccionado != "Distrital")" onchange="this.form.submit()">
+            <option value="">Todas las sedes</option>
+            @foreach (var d in distritos)
+            {
+                <option value="@d.DistritoId" selected="@((ViewBag.DistritoSeleccionado as int?) == d.DistritoId)">@d.Nombre</option>
+            }
+        </select>
+    </div>
+</form>
+
 <div class="card shadow-sm border-0">
-    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-people-fill text-warning me-2"></i> Padrón Oficial de Usuarios Registrados</h6>
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
         <span class="badge bg-danger">@Model.Count() Cuentas</span>
+        <button type="button" class="btn btn-danger btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+            <i class="bi bi-person-plus-fill me-1"></i> Nuevo usuario
+        </button>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-            <thead class="table-light small">
+            <thead class="table-dark small">
                 <tr>
                     <th>Usuario / Informante</th>
                     <th>Correo Electrónico</th>
@@ -116,9 +209,9 @@
                                         <div class="mb-3">
                                             <label class="form-label small fw-bold">Nivel Jurisdiccional:</label>
                                             <select name="nivel" class="form-select form-select-sm">
-                                                <!option value="Distrital" @(u.NivelJurisdiccion == "Distrital" ? "selected" : "")>Distrital</!option>
-                                                <!option value="Provincial" @(u.NivelJurisdiccion == "Provincial" ? "selected" : "")>Provincial (COEP)</!option>
-                                                <!option value="Regional" @(u.NivelJurisdiccion == "Regional" ? "selected" : "")>Regional (COER)</!option>
+                                                <option value="Distrital" selected="@(u.NivelJurisdiccion == "Distrital")">Distrital</option>
+                                                <option value="Provincial" selected="@(u.NivelJurisdiccion == "Provincial")">Provincial (COEP)</option>
+                                                <option value="Regional" selected="@(u.NivelJurisdiccion == "Regional")">Regional (COER)</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
@@ -127,14 +220,14 @@
                                                 <option value="">-- No aplica / Provincial o Regional --</option>
                                                 @foreach (var d in distritos)
                                                 {
-                                                    <option value="@d.DistritoId">@d.Nombre</option>
+                                                    <option value="@d.DistritoId" selected="@(u.DistritoId == d.DistritoId)">@d.Nombre</option>
                                                 }
                                             </select>
                                         </div>
                                     </div>
                                     <div class="modal-footer bg-light py-2">
-                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                                        <button type="submit" class="btn btn-danger btn-sm fw-bold">Guardar Cambios</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                                        <button type="submit" class="btn btn-danger btn-sm fw-bold"><i class="bi bi-floppy me-1"></i>Guardar Cambios</button>
                                     </div>
                                 </form>
                             </div>

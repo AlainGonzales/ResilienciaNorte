@@ -47,7 +47,11 @@ namespace ResilienciaNorte.Domain
         public string Severidad { get; set; } = "Moderado"; // Crítico, Grave, Moderado
 
         [StringLength(20)]
-        public string Estado { get; set; } = "Reportado"; // Reportado, Constatado, Desestimado, ConAsignacion, Atendido
+        public string Estado { get; set; } = "Reportado"; // Reportado, Asignado, Constatado, Desestimado, Atendido
+
+        // Incidencia a la que pertenece (null mientras el reporte no esté agrupado)
+        public int? IncidenciaId { get; set; }
+        public Incidencia? Incidencia { get; set; }
 
         public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
 

@@ -20,7 +20,11 @@ namespace ResilienciaNorte.Service
 
         public async Task<IEnumerable<IncidenteEmergencia>> ObtenerTodosAsync(int? distritoId, string? estado)
         {
-            var query = _context.IncidentesEmergencia.Include(i => i.Distrito).AsQueryable();
+            var query = _context.IncidentesEmergencia
+                .Include(i => i.Distrito)
+                .Include(i => i.Incidencia)
+                    .ThenInclude(inc => inc!.FichaEdan)
+                .AsQueryable();
 
             if (distritoId.HasValue && distritoId.Value > 0)
                 query = query.Where(i => i.DistritoId == distritoId.Value);
@@ -42,6 +46,8 @@ namespace ResilienciaNorte.Service
         {
             return await _context.IncidentesEmergencia
                 .Include(i => i.Distrito)
+                .Include(i => i.Incidencia)
+                    .ThenInclude(inc => inc!.FichaEdan)
                 .FirstOrDefaultAsync(i => i.CodigoIncidente == codigoIncidente.Trim().ToUpper());
         }
 
@@ -55,8 +61,17 @@ namespace ResilienciaNorte.Service
             // 1. Generar código correlativo seguro ALT-2026-XXXX si no viene
             if (string.IsNullOrWhiteSpace(incidente.CodigoIncidente))
             {
-                int totalHoy = await _context.IncidentesEmergencia.CountAsync() + 1;
-                incidente.CodigoIncidente = $"ALT-{TimeHelper.Ahora.Year}-{totalHoy:D4}";
+                string prefijo = $"ALT-{TimeHelper.Ahora.Year}-";
+                // Siguiente número a partir del mayor código existente (no del total: los códigos pueden tener huecos)
+                var codigosExistentes = await _context.IncidentesEmergencia
+                    .Where(i => i.CodigoIncidente.StartsWith(prefijo))
+                    .Select(i => i.CodigoIncidente)
+                    .ToListAsync();
+                int ultimo = codigosExistentes
+                    .Select(c => int.TryParse(c.Substring(prefijo.Length), out var n) ? n : 0)
+                    .DefaultIfEmpty(0)
+                    .Max();
+                incidente.CodigoIncidente = $"{prefijo}{ultimo + 1:D4}";
             }
 
             // Priorización automática (patrón Strategy): familias afectadas + quebrada
@@ -67,16 +82,6 @@ namespace ResilienciaNorte.Service
             _context.IncidentesEmergencia.Add(incidente);
             await _context.SaveChangesAsync();
             return incidente;
-        }
-
-        public async Task<bool> CambiarEstadoAsync(int incidenteId, string nuevoEstado)
-        {
-            var incidente = await _context.IncidentesEmergencia.FindAsync(incidenteId);
-            if (incidente == null) return false;
-
-            incidente.Estado = nuevoEstado;
-            await _context.SaveChangesAsync();
-            return true;
         }
 
         // ── 2. Generación OTP de 30 Segundos con Hash SHA-256 ─────────────────

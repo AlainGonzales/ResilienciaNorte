@@ -1,6 +1,7 @@
 ﻿BD Local:
 
 - Elimina las migraciones de la carpeta Migrations a mano
+dotnet ef database drop --force --project ResilienciaNorte.Repository --startup-project ResilienciaNorte.Web
 
 - Ejecuta el siguiente comando en la consola del Administrador de paquetes:
 Drop-Database -Project ResilienciaNorte.Repository -StartupProject ResilienciaNorte.Web -Confirm:$false

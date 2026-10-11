@@ -1,23 +1,37 @@
-﻿using ResilienciaNorte.Domain;
+using ResilienciaNorte.Domain;
 
 namespace ResilienciaNorte.Service
 {
     public interface IRecursoService
     {
-        // Método consumido por RecursosController.cs (Index)
-        Task<IEnumerable<RecursoAlmacen>> ObtenerInventarioAsync(int? distritoId);
+        // Almacenes en tres niveles
+        Task<IEnumerable<Almacen>> ObtenerAlmacenesAsync();
+        Task<Almacen?> ObtenerAlmacenPorIdAsync(int almacenId);
+        Task<IEnumerable<string>> ObtenerCategoriasAsync();
 
-        // Consultas de inventario y Kardex
-        Task<IEnumerable<RecursoAlmacen>> ObtenerTodosAsync(int? distritoId, string? categoria);
-        Task<RecursoAlmacen?> ObtenerPorIdAsync(int recursoId);
-        Task<IEnumerable<MovimientoAlmacen>> ObtenerKardexPorRecursoAsync(int recursoId);
+        // Existencias y Kardex por almacén
+        Task<IEnumerable<ExistenciaAlmacen>> ObtenerExistenciasAsync(int almacenId, string? categoria);
+        Task<ExistenciaAlmacen?> ObtenerExistenciaAsync(int almacenId, int recursoId);
+        Task<IEnumerable<MovimientoAlmacen>> ObtenerKardexAsync(int almacenId, int? recursoId);
 
-        // Transacciones de entrada y salida atómica (Kardex inmutable)
-        Task RegistrarIngresoAsync(int recursoId, int cantidad, string tipoEntrada, string concepto, string documento, string entidadOrigen, string usuarioId);
-        Task<bool> DeducirStockAtomicoAsync(int recursoId, int cantidad, string concepto, string documento, string usuarioId);
+        // Ingresos (compra, donación o sobrante) y salidas atómicas (Kardex inmutable)
+        Task<MovimientoAlmacen> RegistrarIngresoAsync(int almacenId, int recursoId, int cantidad, string tipoEntrada, string concepto, string documento, string entidadOrigen, string usuarioId);
+        Task<bool> DeducirStockAtomicoAsync(int almacenId, int recursoId, int cantidad, string concepto, string documento, string usuarioId);
 
-        // Reabastecimiento subsidiario
-        Task<SolicitudReabastecimiento> SolicitarReabastecimientoAsync(int recursoId, int distritoOrigenId, int cantidad, string justificacion);
-        Task<IEnumerable<SolicitudReabastecimiento>> ObtenerSolicitudesAsync();
+        // Solicitudes: abastecimiento al almacén padre
+        Task<Solicitud> SolicitarAbastecimientoAsync(int almacenSolicitanteId, int recursoId, int cantidad, string justificacion);
+        Task<IEnumerable<Solicitud>> ObtenerSolicitudesAsync();
+
+        // Solicitud de bienes del analista para una incidencia constatada (sale del almacén de su distrito)
+        Task<IEnumerable<Solicitud>> SolicitarParaIncidenciaAsync(Incidencia incidencia, IEnumerable<(int RecursoId, int Cantidad)> lineas, string justificacion);
+        // El coordinador aprueba solo si el almacén proveedor tiene stock suficiente
+        Task AprobarSolicitudAsync(int solicitudId, string usuarioId);
+        Task RechazarSolicitudAsync(int solicitudId, string usuarioId, string motivo);
+        // El logístico despacha lo aprobado: descuenta stock y registra la salida en el Kardex
+        // Devuelve true si con este despacho la incidencia quedó Atendida
+        Task<bool> DespacharSolicitudAsync(int solicitudId, string usuarioId);
+
+        // Reemplaza el pedido de la incidencia mientras el coordinador no haya decidido sobre ninguna línea
+        Task<IEnumerable<Solicitud>> EditarPedidoIncidenciaAsync(Incidencia incidencia, IEnumerable<(int RecursoId, int Cantidad)> lineas, string justificacion);
     }
 }

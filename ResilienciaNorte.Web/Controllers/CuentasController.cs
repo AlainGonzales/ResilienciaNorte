@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResilienciaNorte.Domain;
+using ResilienciaNorte.Service;
 using ResilienciaNorte.Web.Models;
 
 namespace ResilienciaNorte.Web.Controllers
@@ -10,13 +11,16 @@ namespace ResilienciaNorte.Web.Controllers
     {
         private readonly UserManager<UsuarioAplicacion> _userManager;
         private readonly SignInManager<UsuarioAplicacion> _signInManager;
+        private readonly IAuditoriaService _auditoria;
 
         public CuentasController(
             UserManager<UsuarioAplicacion> userManager,
-            SignInManager<UsuarioAplicacion> signInManager)
+            SignInManager<UsuarioAplicacion> signInManager,
+            IAuditoriaService auditoria)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _auditoria = auditoria;
         }
 
         [HttpPost]
@@ -35,32 +39,53 @@ namespace ResilienciaNorte.Web.Controllers
             if (usuario == null || !usuario.Activo)
             {
                 TempData["ErrorLogin"] = "Credenciales inválidas o cuenta inactiva.";
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "LOGIN_FALLIDO", "Seguridad",
+                    $"Cuenta inexistente o inactiva: {model.EmailODni}");
                 return RedirectToAction("Index", "Home");
             }
 
             var resultado = await _signInManager.PasswordSignInAsync(usuario, model.Password, model.Recordarme, lockoutOnFailure: false);
+            if (!resultado.Succeeded)
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "LOGIN_FALLIDO", "Seguridad",
+                    $"Contraseña incorrecta: {usuario.Email}");
 
             if (resultado.Succeeded)
             {
+                await _auditoria.RegistrarAsync(usuario.Email ?? usuario.UserName ?? "sistema",
+                    string.Join(",", await _userManager.GetRolesAsync(usuario)),
+                    HttpContext.Connection.RemoteIpAddress?.ToString(), "LOGIN", "Seguridad", "Inicio de sesión");
+
                 // 1. Administrador -> Control de Usuarios
                 if (await _userManager.IsInRoleAsync(usuario, "Administrador"))
                 {
                     return RedirectToAction("Usuarios", "Admin");
                 }
 
-                // 2. Almacenero / Logístico -> Almacén BAH
+                // 2. Almacenero / Logístico -> Despachos (lo aprobado que debe salir)
                 if (await _userManager.IsInRoleAsync(usuario, "LogisticoAlmacen"))
                 {
-                    return RedirectToAction("Index", "Recursos");
+                    return RedirectToAction("Solicitudes", "Recursos", new { estado = "Aprobada" });
                 }
 
-                // 3. Evaluador de Campo -> Consola EDAN
+                // 3. Evaluador de Campo -> Triaje de sus incidencias
                 if (await _userManager.IsInRoleAsync(usuario, "EvaluadorCampo"))
                 {
-                    return RedirectToAction("ConsolaCampo", "Edan");
+                    return RedirectToAction("Index", "Triaje");
                 }
 
-                // 4. Operador COEP / Analistas / Coordinadores -> Panel Operativo
+                // 4b. Coordinador -> Solicitudes de su almacén (su pantalla principal)
+                if (await _userManager.IsInRoleAsync(usuario, "Coordinador"))
+                {
+                    return RedirectToAction("Solicitudes", "Recursos");
+                }
+
+                // 4a. Analista -> Monitoreo de Reportes
+                if (await _userManager.IsInRoleAsync(usuario, "Analista"))
+                {
+                    return RedirectToAction("Index", "Incidentes");
+                }
+
+                // 4. Operador COEP / Coordinadores -> Panel Operativo
                 if (!await _userManager.IsInRoleAsync(usuario, "Ciudadano"))
                 {
                     return RedirectToAction("Index", "Home");
@@ -112,10 +137,17 @@ namespace ResilienciaNorte.Web.Controllers
                 await _signInManager.SignInAsync(nuevoUsuario, isPersistent: false);
 
                 TempData["ExitoRegistro"] = $"¡Registro exitoso! Bienvenido al sistema, {nuevoUsuario.NombreCompleto}.";
+                await _auditoria.RegistrarAsync(nuevoUsuario.Email ?? "sistema", "Ciudadano",
+                    HttpContext.Connection.RemoteIpAddress?.ToString(), "INSERT", "Seguridad",
+                    $"Registro de ciudadano · DNI {nuevoUsuario.Dni}");
                 return RedirectToAction("Index", "Home");
             }
 
-            TempData["ErrorRegistro"] = string.Join(" ", resultado.Errors.Select(e => e.Description));
+            // Identity devuelve el mensaje en inglés: el correo repetido se explica en español
+            bool correoRepetido = resultado.Errors.Any(e => e.Code is "DuplicateUserName" or "DuplicateEmail");
+            TempData["ErrorRegistro"] = correoRepetido
+                ? "Ya existe una cuenta registrada con ese correo electrónico. Inicie sesión o use otro correo."
+                : string.Join(" ", resultado.Errors.Select(e => e.Description));
             return RedirectToAction("Index", "Home");
         }
 
@@ -123,6 +155,7 @@ namespace ResilienciaNorte.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "LOGOUT", "Seguridad", "Cierre de sesión");
             await _signInManager.SignOutAsync();
             return RedirectToAction("Index", "Home");
         }

@@ -9,8 +9,8 @@ namespace ResilienciaNorte.Domain
         public int RecursoId { get; set; }
         public RecursoAlmacen? Recurso { get; set; }
 
-        public int DistritoId { get; set; }
-        public Distrito? Distrito { get; set; }
+        public int AlmacenId { get; set; }
+        public Almacen? Almacen { get; set; }
 
         // 'ENTRADA' o 'SALIDA'
         public string TipoMovimiento { get; set; } = string.Empty;

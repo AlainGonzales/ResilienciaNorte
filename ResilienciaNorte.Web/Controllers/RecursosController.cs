@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
 using ResilienciaNorte.Domain;
@@ -7,67 +9,72 @@ using ResilienciaNorte.Web.Hubs;
 
 namespace ResilienciaNorte.Web.Controllers
 {
+    [Authorize(Roles = "Administrador,Coordinador,LogisticoAlmacen")]
     public class RecursosController : Controller
     {
         private readonly IRecursoService _recursoService;
-        private readonly IIncidenteService _incidenteService;
         private readonly IHubContext<EmergenciaHub> _hubContext;
+        private readonly UserManager<UsuarioAplicacion> _userManager;
+        private readonly IAuditoriaService _auditoria;
 
-        public RecursosController(
-            IRecursoService recursoService,
-            IIncidenteService incidenteService,
-            IHubContext<EmergenciaHub> hubContext)
+        public RecursosController(IRecursoService recursoService, IHubContext<EmergenciaHub> hubContext, UserManager<UsuarioAplicacion> userManager, IAuditoriaService auditoria)
         {
             _recursoService = recursoService;
-            _incidenteService = incidenteService;
             _hubContext = hubContext;
+            _userManager = userManager;
+            _auditoria = auditoria;
         }
 
-        // 1. Listado de Almacén con Filtro
-        public async Task<IActionResult> Index(int? distritoId, string? categoria)
+        // 1. Existencias de un almacén (por defecto, el provincial)
+        [Authorize(Roles = "Administrador,LogisticoAlmacen")]
+        public async Task<IActionResult> Index(int? almacenId, string? categoria)
         {
-            var distritos = await _incidenteService.ObtenerDistritosAsync();
-            ViewBag.Distritos = new SelectList(distritos ?? Enumerable.Empty<Distrito>(), "DistritoId", "Nombre", distritoId);
-            ViewBag.DistritoSeleccionado = distritoId;
+            var almacenes = (await _recursoService.ObtenerAlmacenesAsync()).ToList();
+            var seleccionado = almacenes.FirstOrDefault(a => a.AlmacenId == almacenId)
+                ?? almacenes.FirstOrDefault(a => a.Nivel == "Regional");
+
+            ViewBag.Almacenes = OpcionesAlmacenes(almacenes, seleccionado?.AlmacenId);
+            ViewBag.AlmacenSeleccionado = seleccionado;
+            ViewBag.Categorias = await _recursoService.ObtenerCategoriasAsync();
             ViewBag.CategoriaSeleccionada = categoria ?? string.Empty;
 
-            var recursos = await _recursoService.ObtenerTodosAsync(distritoId, categoria);
-            return View(recursos);
+            var existencias = seleccionado == null
+                ? Enumerable.Empty<ExistenciaAlmacen>()
+                : await _recursoService.ObtenerExistenciasAsync(seleccionado.AlmacenId, categoria);
+            return View(existencias);
         }
 
-        // 2. Registro Transaccional de Ingreso (Compras ediles, Donaciones, Sobrantes)
+        // 2. Ingreso transaccional (compra directa, donación o sobrante)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegistrarIngreso(int recursoId, int cantidad, string tipoEntrada, string concepto, string documento, string entidadOrigen)
+        [Authorize(Roles = "Administrador,LogisticoAlmacen")]
+        public async Task<IActionResult> RegistrarIngreso(int almacenId, int recursoId, int cantidad, string tipoEntrada, string concepto, string documento, string entidadOrigen)
         {
             try
             {
                 string responsable = User.Identity?.Name ?? "Logística BAH";
-                await _recursoService.RegistrarIngresoAsync(
-                    recursoId,
-                    cantidad,
-                    tipoEntrada,
-                    concepto,
-                    documento,
-                    entidadOrigen,
-                    usuarioId: responsable
-                );
+                var movimiento = await _recursoService.RegistrarIngresoAsync(
+                    almacenId, recursoId, cantidad, tipoEntrada, concepto, documento, entidadOrigen, responsable);
 
-                var recurso = await _recursoService.ObtenerPorIdAsync(recursoId);
+                var existencia = await _recursoService.ObtenerExistenciaAsync(almacenId, recursoId);
 
-                // Emitir actualización de Kardex en tiempo real hacia todas las consolas abiertas
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "INSERT", "Almacen",
+                    $"Ingreso de {cantidad} ({tipoEntrada}) · almacén {almacenId} · bien {recursoId} · doc {documento}");
+
                 await _hubContext.Clients.All.SendAsync("NuevoMovimientoKardex", new
                 {
-                    recursoId = recursoId,
+                    almacenId,
+                    recursoId,
+                    bien = existencia?.Recurso?.Nombre,
                     fechaHora = TimeHelper.Ahora.ToString("dd/MM/yyyy HH:mm"),
-                    tipo = "ENTRADA",
-                    concepto = $"{tipoEntrada}: {concepto}",
-                    documento = documento,
-                    origenDestino = entidadOrigen,
-                    stockAnterior = recurso != null ? recurso.StockDisponible - cantidad : 0,
-                    cantidad = cantidad,
-                    stockPosterior = recurso != null ? recurso.StockDisponible : cantidad,
-                    responsable = responsable
+                    tipo = movimiento.TipoMovimiento,
+                    concepto = movimiento.ConceptoMovimiento,
+                    documento = movimiento.DocumentoReferencia,
+                    origenDestino = movimiento.EntidadOrigenDestino,
+                    stockAnterior = movimiento.StockAnterior,
+                    cantidad = movimiento.Cantidad,
+                    stockPosterior = movimiento.StockPosterior,
+                    responsable
                 });
 
                 TempData["MensajeExito"] = "Ingreso registrado correctamente en el Kardex.";
@@ -77,55 +84,213 @@ namespace ResilienciaNorte.Web.Controllers
                 TempData["MensajeError"] = $"Error al registrar ingreso: {ex.Message}";
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), new { almacenId });
         }
 
-        // 3. Vista de Kardex Inmutable por Recurso
-        public async Task<IActionResult> Kardex(int id)
+        // 3. Kardex inmutable del almacén completo (filtrable por bien)
+        [Authorize(Roles = "Administrador,Coordinador")]
+        public async Task<IActionResult> Kardex(int? almacenId, int? recursoId)
         {
-            var recurso = await _recursoService.ObtenerPorIdAsync(id);
-            if (recurso == null) return NotFound();
+            var almacenes = (await _recursoService.ObtenerAlmacenesAsync()).ToList();
+            // Sin selección, el coordinador ve el kardex de su almacén distrital
+            var almacen = almacenes.FirstOrDefault(a => a.AlmacenId == almacenId)
+                ?? await AlmacenDelUsuarioAsync(almacenes)
+                ?? almacenes.FirstOrDefault(a => a.Nivel == "Regional");
+            if (almacen == null) return NotFound();
 
-            ViewBag.Recurso = recurso;
-            var movimientos = await _recursoService.ObtenerKardexPorRecursoAsync(id);
+            ViewBag.Almacen = almacen;
+            ViewBag.Almacenes = OpcionesAlmacenes(almacenes, almacen.AlmacenId);
+            ViewBag.Bienes = await _recursoService.ObtenerExistenciasAsync(almacen.AlmacenId, null);
+            ViewBag.RecursoFiltro = recursoId;
+
+            var movimientos = await _recursoService.ObtenerKardexAsync(almacen.AlmacenId, recursoId);
+
+            // El responsable se muestra con el correo del usuario, no con su ID interno
+            var correos = new Dictionary<string, string>();
+            foreach (var id in movimientos.Select(m => m.UsuarioResponsableId).Distinct())
+            {
+                var usuario = await _userManager.FindByIdAsync(id);
+                if (usuario != null) correos[id] = usuario.Email ?? usuario.UserName ?? id;
+            }
+            ViewBag.Correos = correos;
+
             return View(movimientos);
         }
 
-        // 4. Reabastecimiento Subsidiario (Distrito -> Provincia -> Región) con Push SignalR
+        // 4. Reabastecimiento: la solicitud va al almacén padre
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SolicitarReabastecimiento(int recursoId, int cantidad, string justificacion)
+        [Authorize(Roles = "Administrador,LogisticoAlmacen")]
+        public async Task<IActionResult> SolicitarReabastecimiento(int almacenId, int recursoId, int cantidad, string justificacion)
         {
-            var recurso = await _recursoService.ObtenerPorIdAsync(recursoId);
-            if (recurso == null) return NotFound();
-
-            var solicitud = await _recursoService.SolicitarReabastecimientoAsync(
-                recursoId,
-                recurso.DistritoId,
-                cantidad,
-                justificacion
-            );
-
-            // Alerta transversal en tiempo real
-            await _hubContext.Clients.All.SendAsync("AlertaStockCritico", new
+            try
             {
-                codigoSolicitud = solicitud.CodigoSolicitud,
-                recurso = recurso.Nombre,
-                distrito = recurso.Distrito?.Nombre,
-                stockActual = recurso.StockDisponible,
-                stockMinimo = recurso.StockMinimo,
-                nivelDestino = solicitud.NivelDestino
-            });
+                var solicitud = await _recursoService.SolicitarAbastecimientoAsync(almacenId, recursoId, cantidad, justificacion);
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "INSERT", "Almacen",
+                    $"Abastecimiento solicitado {solicitud.CodigoSolicitud}: {cantidad} · almacén {almacenId} · bien {recursoId}");
+                var existencia = await _recursoService.ObtenerExistenciaAsync(almacenId, recursoId);
+                var destino = await _recursoService.ObtenerAlmacenPorIdAsync(solicitud.AlmacenProveedorId ?? 0);
 
-            TempData["MensajeExito"] = $"Solicitud {solicitud.CodigoSolicitud} enviada hacia {solicitud.NivelDestino}.";
+                await _hubContext.Clients.All.SendAsync("AlertaStockCritico", new
+                {
+                    codigoSolicitud = solicitud.CodigoSolicitud,
+                    recurso = existencia?.Recurso?.Nombre,
+                    almacen = existencia?.Almacen?.Nombre,
+                    stockActual = existencia?.StockDisponible,
+                    stockMinimo = existencia?.StockMinimo,
+                    nivelDestino = destino?.Nombre
+                });
+
+                TempData["MensajeExito"] = $"Solicitud {solicitud.CodigoSolicitud} enviada hacia {destino?.Nombre}.";
+                return RedirectToAction(nameof(Solicitudes));
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["MensajeError"] = ex.Message;
+                return RedirectToAction(nameof(Index), new { almacenId });
+            }
+        }
+
+        private static List<SelectListItem> OpcionesAlmacenes(IEnumerable<Almacen> almacenes, int? seleccionadoId)
+        {
+            var grupos = new Dictionary<string, SelectListGroup>();
+            return almacenes.Select(a =>
+            {
+                if (!grupos.TryGetValue(a.Nivel, out var grupo))
+                    grupos[a.Nivel] = grupo = new SelectListGroup { Name = a.Nivel };
+                return new SelectListItem
+                {
+                    Value = a.AlmacenId.ToString(),
+                    Text = a.Nombre,
+                    Selected = a.AlmacenId == seleccionadoId,
+                    Group = grupo
+                };
+            }).ToList();
+        }
+
+        // 5. Bandeja de solicitudes: cada coordinador y logístico ve las de su almacén; el administrador, todas
+        public async Task<IActionResult> Solicitudes(string? estado)
+        {
+            var visibles = new List<Solicitud>();
+            foreach (var s in await _recursoService.ObtenerSolicitudesAsync())
+            {
+                if (!string.IsNullOrEmpty(estado) && s.Estado != estado) continue;
+                if (await EsDelAlmacenDelUsuarioAsync(s.AlmacenProveedorId))
+                    visibles.Add(s);
+            }
+
+            // Stock del almacén proveedor, para que el coordinador decida según lo que hay
+            var stock = new Dictionary<int, int>();
+            foreach (var s in visibles)
+            {
+                var existencia = s.AlmacenProveedorId == null ? null
+                    : await _recursoService.ObtenerExistenciaAsync(s.AlmacenProveedorId.Value, s.RecursoId);
+                stock[s.SolicitudId] = existencia?.StockDisponible ?? 0;
+            }
+
+            ViewBag.Stock = stock;
+            ViewBag.EstadoFiltro = estado ?? string.Empty;
+            ViewBag.PuedeAprobar = User.IsInRole("Administrador") || User.IsInRole("Coordinador");
+            ViewBag.PuedeDespachar = User.IsInRole("Administrador") || User.IsInRole("LogisticoAlmacen");
+            return View(visibles);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador,Coordinador")]
+        public async Task<IActionResult> Aprobar(int id)
+        {
+            try
+            {
+                var solicitud = await BuscarSolicitudAsync(id);
+                await _recursoService.AprobarSolicitudAsync(id, _userManager.GetUserId(User) ?? string.Empty);
+                TempData["MensajeExito"] = $"Solicitud {solicitud.CodigoSolicitud} aprobada. Lista para despacho.";
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "UPDATE", "Almacen",
+                    $"Solicitud {solicitud.CodigoSolicitud} aprobada ({solicitud.CantidadSolicitada} de {solicitud.Recurso?.Nombre})");
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["MensajeError"] = ex.Message;
+            }
             return RedirectToAction(nameof(Solicitudes));
         }
 
-        // 5. Bandeja de Reabastecimiento Multinivel
-        public async Task<IActionResult> Solicitudes()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador,Coordinador")]
+        public async Task<IActionResult> Rechazar(int id, string motivo)
         {
-            var solicitudes = await _recursoService.ObtenerSolicitudesAsync();
-            return View(solicitudes);
+            try
+            {
+                var solicitud = await BuscarSolicitudAsync(id);
+                await _recursoService.RechazarSolicitudAsync(id, _userManager.GetUserId(User) ?? string.Empty, motivo);
+                TempData["MensajeExito"] = $"Solicitud {solicitud.CodigoSolicitud} rechazada.";
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "UPDATE", "Almacen",
+                    $"Solicitud {solicitud.CodigoSolicitud} rechazada: {motivo}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["MensajeError"] = ex.Message;
+            }
+            return RedirectToAction(nameof(Solicitudes));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Administrador,LogisticoAlmacen")]
+        public async Task<IActionResult> Despachar(int id)
+        {
+            try
+            {
+                var solicitud = await BuscarSolicitudAsync(id);
+                bool atendida = await _recursoService.DespacharSolicitudAsync(id, _userManager.GetUserId(User) ?? string.Empty);
+                TempData["MensajeExito"] = $"Solicitud {solicitud.CodigoSolicitud} despachada. Salida registrada en el Kardex.";
+                await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "UPDATE", "Almacen",
+                    $"Solicitud {solicitud.CodigoSolicitud} despachada ({solicitud.CantidadSolicitada} de {solicitud.Recurso?.Nombre})");
+
+                if (atendida)
+                {
+                    TempData["MensajeExito"] = $"Incidencia {solicitud.Incidencia?.Codigo} atendida: todos sus bienes fueron despachados.";
+                    await _auditoria.RegistrarAsync(User, HttpContext.Connection.RemoteIpAddress?.ToString(), "UPDATE", "Incidentes",
+                        $"Incidencia {solicitud.Incidencia?.Codigo} atendida: todos sus bienes despachados");
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["MensajeError"] = ex.Message;
+            }
+            return RedirectToAction(nameof(Solicitudes));
+        }
+
+        private async Task<Solicitud> BuscarSolicitudAsync(int id)
+        {
+            var solicitud = (await _recursoService.ObtenerSolicitudesAsync()).FirstOrDefault(s => s.SolicitudId == id);
+            if (solicitud == null) throw new InvalidOperationException("La solicitud no existe.");
+            if (!await EsDelAlmacenDelUsuarioAsync(solicitud.AlmacenProveedorId))
+                throw new InvalidOperationException("Solo puede gestionar solicitudes de su almacén.");
+            return solicitud;
+        }
+
+        // El administrador ve todo; el resto solo los almacenes de su mismo distrito
+        // Almacén distrital del usuario (coordinador o logístico); el administrador no tiene uno propio
+        private async Task<Almacen?> AlmacenDelUsuarioAsync(IEnumerable<Almacen> almacenes)
+        {
+            if (User.IsInRole("Administrador")) return null;
+            var usuario = await _userManager.GetUserAsync(User);
+            if (usuario?.DistritoId == null) return null;
+            return almacenes.FirstOrDefault(a => a.Nivel == "Distrital" && a.DistritoId == usuario.DistritoId);
+        }
+
+        private async Task<bool> EsDelAlmacenDelUsuarioAsync(int? almacenId)
+        {
+            if (User.IsInRole("Administrador")) return true;
+            if (almacenId == null) return false;
+
+            var usuario = await _userManager.GetUserAsync(User);
+            if (usuario?.DistritoId == null) return false;
+
+            var almacen = await _recursoService.ObtenerAlmacenPorIdAsync(almacenId.Value);
+            return almacen?.DistritoId == usuario.DistritoId;
         }
     }
 }

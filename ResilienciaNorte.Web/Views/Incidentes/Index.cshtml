@@ -1,22 +1,47 @@
-﻿@model IEnumerable<ResilienciaNorte.Domain.IncidenteEmergencia>
+﻿@using ResilienciaNorte.Domain
+@model IEnumerable<ResilienciaNorte.Domain.IncidenteEmergencia>
 @{
-    ViewData["Title"] = "Monitoreo de Incidentes";
+    ViewData["Title"] = "Monitoreo de Reportes";
+    ViewData["ModulosTiempoReal"] = "Incidentes";
 
-    var conteoPorDistrito = Model
-        .Where(i => i.Estado != "Desestimado")
+    // El color de cada distrito sigue la severidad más alta de sus reportes activos
+    var severidadMaximaPorDistrito = Model
+        .Where(i => i.Estado != EstadoIncidente.Desestimado && i.Estado != EstadoIncidente.Atendido)
         .GroupBy(i => i.DistritoId)
-        .ToDictionary(g => g.Key, g => g.Count());
+        .ToDictionary(g => g.Key, g => g.Max(i => (int)NivelSeveridadExtensions.DesdeEtiqueta(i.Severidad)));
 
     string ObtenerColorSemaforo(int distritoId)
     {
-        int count = conteoPorDistrito.ContainsKey(distritoId) ? conteoPorDistrito[distritoId] : 0;
-        if (count >= 4) return "alerta-rojo";
-        if (count >= 2) return "alerta-naranja";
+        if (!severidadMaximaPorDistrito.TryGetValue(distritoId, out int nivel)) return string.Empty;
+        if (nivel == (int)NivelSeveridad.Critico) return "alerta-rojo";
+        if (nivel == (int)NivelSeveridad.Grave) return "alerta-naranja";
         return "alerta-amarillo";
     }
 
+    var estados = new[]
+    {
+        (EstadoIncidente.Reportado, "Reportado"),
+        (EstadoIncidente.Asignado, "Asignado"),
+        (EstadoIncidente.Constatado, "Constatado"),
+        (EstadoIncidente.Desestimado, "Desestimado"),
+        (EstadoIncidente.Atendido, "Atendido")
+    };
+
     string estadoActual = ViewBag.EstadoSeleccionado as string ?? "";
     string distritoActual = ViewBag.DistritoSeleccionado?.ToString() ?? "";
+    string tipoActual = ViewBag.TipoSeleccionado as string ?? "";
+    var tipos = ViewBag.Tipos as List<string> ?? new List<string>();
+
+
+    string FlechaResponsable(string estado) => estado switch
+    {
+        EstadoIncidente.Reportado => "Analista",
+        EstadoIncidente.Asignado => "Evaluador",
+        EstadoIncidente.Constatado => "Coordinador",
+        EstadoIncidente.Desestimado => "Descartado",
+        EstadoIncidente.Atendido => "Cerrado",
+        _ => ""
+    };
 }
 
 <style>
@@ -29,8 +54,7 @@
 
     .mapa-lienzo-wrap {
         position: relative;
-        width: 100%;
-        max-width: 480px;
+        width: 100%;        
         margin: 0 auto;
         border-radius: 8px;
         overflow: hidden;
@@ -45,29 +69,28 @@
 
     .distrito-overlay {
         cursor: pointer;
-        opacity: 0.45;
-        stroke: #1e293b;
-        stroke-width: 2;
-        transition: opacity 0.2s ease-in-out, stroke 0.2s ease-in-out, stroke-width 0.2s ease-in-out;
+        fill: #e2e8f0;
+        opacity: 0.6;
+        stroke: #475569;
+        stroke-width: 1.5;
+        transition: stroke 0.15s ease-in-out, stroke-width 0.15s ease-in-out;
         pointer-events: all;
     }
 
     .distrito-overlay:hover {
-        opacity: 0.80 !important;
-        stroke: #0284c7 !important;
-        stroke-width: 4 !important;
+        stroke: #0d6efd;
+        stroke-width: 8;
     }
 
     .distrito-overlay.distrito-activo {
-        opacity: 0.90 !important;
-        stroke: #0284c7 !important;
-        stroke-width: 5 !important;
-        filter: drop-shadow(0 0 6px #0284c7);
+        stroke: #0d6efd;
+        stroke-width: 8;
+        filter: drop-shadow(0 0 4px #0d6efd);
     }
 
-    .alerta-amarillo { fill: #eab308; }
-    .alerta-naranja { fill: #f97316; }
-    .alerta-rojo { fill: #ef4444; }
+    .alerta-amarillo { fill: #facc15; }
+    .alerta-naranja { fill: #fb923c; }
+    .alerta-rojo { fill: #f87171; }
 
     .tabla-scroll-wrap {
         max-height: 540px;
@@ -92,19 +115,19 @@
 </style>
 
 <div class="mb-3">
-    <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-danger"></i> Monitoreo de Incidentes</h2>
+    <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-activity text-danger"></i> Monitoreo de Reportes</h2>
     <p class="text-muted small mb-0">Alertas y emergencias pluviales reportadas en la Provincia de Trujillo</p>
 </div>
 
 <!-- DASHBOARD INTEGRAL EN 2 COLUMNAS (MAPA Y TABLA EN LA MISMA PANTALLA) -->
 <div class="row g-3">
     <!-- COLUMNA IZQUIERDA: CROQUIS CARTOGRÁFICO Y SEMÁFORO -->
-    <div class="col-xl-5 col-lg-5">
+    <div class="col-xl-4 col-lg-4">
         <div class="mapa-card-container h-100">
-            <div class="d-flex justify-content-between text-white mb-2 px-1 small">
-                <span><span class="badge bg-warning text-dark">&nbsp;</span> Alerta Amarilla</span>
-                <span><span class="badge" style="background:#f97316;">&nbsp;</span> Alerta Naranja</span>
-                <span><span class="badge bg-danger">&nbsp;</span> Alerta Roja</span>
+            <div class="d-flex justify-content-between text-white mb-4 px-1 small">
+                <span><span class="badge badge-moderado">Moderado</span></span>
+                <span><span class="badge badge-alto">Grave</span></span>
+                <span><span class="badge badge-critico">Crítico</span></span>
             </div>
 
             <div class="mapa-lienzo-wrap">
@@ -220,36 +243,115 @@
     </div>
 
     <!-- COLUMNA DERECHA: FILTRO DE ESTADO Y TABLA DE INCIDENTES -->
-    <div class="col-xl-7 col-lg-7">
+    <div class="col-xl-8 col-lg-8">
         <div class="card shadow-sm border-0 mb-3 bg-light">
             <div class="card-body p-2">
-                <form method="get" id="formFiltros" class="row g-2 align-items-center">
+                <form method="get" id="formFiltros">
                     <input type="hidden" name="distritoId" id="inputDistrito" value="@distritoActual" />
+                    <input type="hidden" name="estado" value="@estadoActual" />
 
-                    <div class="col-sm-8 col-md-9">
-                        <select name="estado" id="selectEstado" class="form-select form-select-sm">
-                            <option value="">-- Todos los estados --</option>
-                            <!option value="Reportado" @(estadoActual == "Reportado" ? "selected" : "")>Reportado</!option>
-                            <!option value="Constatado" @(estadoActual == "Constatado" ? "selected" : "")>Constatado</!option>
-                            <!option value="Desestimado" @(estadoActual == "Desestimado" ? "selected" : "")>Desestimado</!option>
-                            <!option value="Con Asignación" @(estadoActual == "Con Asignación" || estadoActual == "ConAsignacion" ? "selected" : "")>Con Asignación</!option>
-                            <!option value="En Despacho" @(estadoActual == "En Despacho" || estadoActual == "EnDespacho" ? "selected" : "")>En Despacho</!option>
-                            <!option value="Atendido" @(estadoActual == "Atendido" ? "selected" : "")>Atendido</!option>
-                        </select>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="small fw-bold text-muted me-1" style="min-width: 6rem;">Estado:</span>
+                        @foreach (var (valor, etiqueta) in estados)
+                        {
+                            bool activo = estadoActual == valor;
+                            <a asp-action="Index"
+                               asp-route-estado="@(activo ? null : valor)"
+                               asp-route-tipo="@tipoActual"
+                               asp-route-distritoId="@distritoActual"
+                               class="btn btn-sm @(activo ? "btn-dark" : "btn-outline-secondary")">@etiqueta</a>
+                        }
                     </div>
-                    <div class="col-sm-4 col-md-3 d-flex gap-1">
-                        <button type="submit" class="btn btn-sm btn-secondary w-100"><i class="bi bi-funnel"></i> Filtrar</button>
-                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary px-2" title="Limpiar todos los filtros"><i class="bi bi-arrow-counterclockwise"></i></a>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="small fw-bold text-muted me-1" style="min-width: 6rem;">Tipo:</span>
+                        <select name="tipo" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                            <option value="">Todos los tipos</option>
+                            @foreach (var t in tipos)
+                            {
+                                <option value="@t" selected="@(t == tipoActual)">@t</option>
+                            }
+                        </select>
                     </div>
                 </form>
             </div>
         </div>
 
         <div class="card shadow-sm border-0">
+            @if (User.IsInRole("Analista") || User.IsInRole("Administrador"))
+            {
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 border-bottom">
+                    <span class="small fw-bold text-muted ps-1"><span id="contadorReportes">@Model.Count()</span> registros</span>
+                    <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-primary @((bool)ViewBag.PuedeCrearIncidencia ? "" : "d-none")" id="btnModoIncidencia" data-permitido="@((bool)ViewBag.PuedeCrearIncidencia ? "true" : "false")"><i class="bi bi-plus-lg"></i> Incidencia</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary d-none" id="btnSugerir"><i class="bi bi-magic"></i> Sugerir grupo (4 h)</button>
+                    <button type="button" class="btn btn-sm btn-success d-none" id="btnCrearIncidencia" data-bs-toggle="modal" data-bs-target="#modalIncidencia" disabled>Crear incidencia (0)</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btnCancelarModo">Cancelar</button>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="modalIncidencia" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content shadow">
+                            <form asp-controller="Incidencias" asp-action="Crear" method="post" id="formCrearIncidencia">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title fs-6"><i class="bi bi-collection"></i> Nueva incidencia</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Sector</label>
+                                        <input type="text" name="sector" id="inputSectorIncidencia" class="form-control form-control-sm" maxlength="100" required />
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Tipo de evento</label>
+                                        <select name="tipoEvento" id="selectTipoIncidencia" class="form-select form-select-sm" required>
+                                            <option value="Inundación Pluvial">Inundación Pluvial</option>
+                                            <option value="Desborde Quebrada">Desborde Quebrada</option>
+                                            <option value="Colapso de Desagüe">Colapso de Desagüe</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Observación (opcional)</label>
+                                        <textarea name="observacion" rows="2" class="form-control form-control-sm" maxlength="300"></textarea>
+                                    </div>
+                                    <p class="small text-muted mb-0" id="textoReportesIncidencia"></p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-floppy me-1"></i>Crear incidencia</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!(User.IsInRole("Analista") || User.IsInRole("Administrador")))
+            {
+                <div class="small text-muted px-3 pt-2"><span id="contadorReportes">@Model.Count()</span> registros</div>
+            }
+
+            <div class="modal fade" id="modalReporte" tabindex="-1">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content shadow">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title fs-6" id="repTitulo"></h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-2" id="repCuerpo"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-responsive tabla-scroll-wrap">
                 <table class="table table-hover align-middle mb-0" id="tablaIncidentes">
-                    <thead class="card-header-resiliencia sticky-top">
+                    <thead class="table-dark sticky-top">
                         <tr>
+                            <th class="col-seleccion d-none" style="width: 2.5rem;"><input type="checkbox" id="chkTodos" class="form-check-input" /></th>
                             <th>Código</th>
                             <th>Incidente / Ubicación</th>
                             <th>Distrito</th>
@@ -257,7 +359,7 @@
                             <th>Fam.</th>
                             <th>Fecha</th>
                             <th>Estado</th>
-                            <th class="text-center">Acción</th>
+                            <th>Sgte. Responsable</th>
                         </tr>
                     </thead>
                     <tbody id="tbodyIncidentes">
@@ -270,12 +372,18 @@
                         @foreach (var item in Model)
                         {
                             <tr data-distrito-id="@item.DistritoId">
-                                <td class="fw-bold small">@item.CodigoIncidente</td>
+                                <td class="col-seleccion d-none">
+                                    @if (item.Estado == EstadoIncidente.Reportado && item.IncidenciaId == null)
+                                    {
+                                        <input type="checkbox" class="form-check-input chk-reporte" value="@item.IncidenteId" data-distrito="@item.DistritoId" data-tipo="@item.TipoEvento" data-fecha="@item.FechaRegistro.ToString("o")" data-sector="@item.SectorCritico" />
+                                    }
+                                </td>
+                                <td class="fw-bold small">@item.CodigoIncidente <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-primary" title="Ver reporte" onclick="verReporte(@item.IncidenteId)"><i class="bi bi-eye"></i></button></td>
                                 <td>
                                     <div class="fw-bold small text-dark">@item.SectorCritico</div>
                                     <small class="text-muted"><i class="bi bi-geo-alt"></i> @(string.IsNullOrWhiteSpace(item.DireccionReferencia) ? item.TipoEvento : item.DireccionReferencia)</small>
                                 </td>
-                                <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span></td>
+                                <td><span class="badge bg-secondary">@item.Distrito?.Nombre</span><div class="small text-muted mt-1">@item.TipoEvento</div></td>
                                 <td>
                                     @if (item.Severidad == "Crítico")
                                     {
@@ -304,13 +412,8 @@
                                         case "Desestimado":
                                             <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Desestimado</span>
                                             break;
-                                        case "Con Asignación":
-                                        case "ConAsignacion":
-                                            <span class="badge bg-info text-dark"><i class="bi bi-box-seam"></i> Asignado</span>
-                                            break;
-                                        case "En Despacho":
-                                        case "EnDespacho":
-                                            <span class="badge bg-secondary"><i class="bi bi-truck"></i> Despacho</span>
+                                        case "Asignado":
+                                            <span class="badge bg-info text-dark"><i class="bi bi-person-check"></i> Asignado</span>
                                             break;
                                         case "Atendido":
                                             <span class="badge bg-success"><i class="bi bi-check2-all"></i> Atendido</span>
@@ -320,43 +423,7 @@
                                             break;
                                     }
                                 </td>
-                                <td class="text-center">
-                                    @if (item.Estado == "Reportado")
-                                    {
-                                        <form asp-action="CambiarEstado" method="post" class="d-inline">
-                                            <input type="hidden" name="id" value="@item.IncidenteId" />
-                                            <input type="hidden" name="nuevoEstado" value="Constatado" />
-                                            <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Constatar en terreno">
-                                                <i class="bi bi-check-lg"></i>
-                                            </button>
-                                        </form>
-                                        <form asp-action="CambiarEstado" method="post" class="d-inline">
-                                            <input type="hidden" name="id" value="@item.IncidenteId" />
-                                            <input type="hidden" name="nuevoEstado" value="Desestimado" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Desestimar reporte">
-                                                <i class="bi bi-x-lg"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                    else if (item.Estado == "Constatado")
-                                    {
-                                        <a asp-controller="Ordenes" asp-action="Crear" asp-route-incidenteId="@item.IncidenteId" class="btn btn-sm btn-outline-primary py-0 px-2" title="Asignar bienes BAH">
-                                            <i class="bi bi-box-seam"></i> Asignar
-                                        </a>
-                                    }
-                                    else if (item.Estado == "Atendido")
-                                    {
-                                        <i class="bi bi-check2-all text-success fs-6" title="Emergencia Cerrada"></i>
-                                    }
-                                    else if (item.Estado == "Desestimado")
-                                    {
-                                        <i class="bi bi-slash-circle text-muted fs-6" title="Reporte Descartado"></i>
-                                    }
-                                    else
-                                    {
-                                        <a asp-controller="Ordenes" asp-action="PorIncidente" asp-route-id="@item.IncidenteId" class="badge bg-light text-dark border text-decoration-none" title="Ver orden de atención">En proceso</a>
-                                    }
-                                </td>
+                                <td class="small fw-bold">@FlechaResponsable(item.Estado)</td>
                             </tr>
                         }
                     </tbody>
@@ -368,6 +435,79 @@
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const reportesLista = @Html.Raw(Json.Serialize(Model.Select(i => new
+        {
+            id = i.IncidenteId,
+            codigo = i.CodigoIncidente,
+            distrito = i.Distrito?.Nombre,
+            sector = i.SectorCritico,
+            tipo = i.TipoEvento,
+            severidad = i.Severidad,
+            familias = i.FamiliasAfectadas,
+            fecha = i.FechaRegistro.ToString("dd/MM/yyyy HH:mm"),
+            direccion = i.DireccionReferencia,
+            descripcion = i.Descripcion,
+            nombre = i.NombreCiudadano,
+            dni = i.DniCiudadano,
+            telefono = i.Telefono,
+            estado = i.Estado,
+            motivo = i.Incidencia?.ObservacionResolucion,
+            ficha = i.Incidencia?.FichaEdan == null ? null : new
+            {
+                familias = i.Incidencia.FichaEdan.FamiliasAfectadas,
+                viviendas = i.Incidencia.FichaEdan.ViviendasAfectadas,
+                personas = i.Incidencia.FichaEdan.PersonasAfectadas,
+                fecha = i.Incidencia.FichaEdan.FechaVisita.ToString("dd/MM/yyyy"),
+                necesidades = i.Incidencia.FichaEdan.NecesidadesUrgentes
+            }
+        })));
+        const reportesMapa = {};
+        reportesLista.forEach(r => reportesMapa[String(r.id)] = r);
+
+        function verReporte(id) {
+            const r = reportesMapa[String(id)];
+            if (!r) return;
+            document.getElementById('repTitulo').textContent = `Reporte ${r.codigo}`;
+            const cuerpo = document.getElementById('repCuerpo');
+            cuerpo.replaceChildren();
+            const campos = [
+                ['Distrito', r.distrito, 'col-md-6'],
+                ['Sector / quebrada', r.sector, 'col-md-6'],
+                ['Tipo de evento', r.tipo, 'col-md-6'],
+                ['Severidad', r.severidad, 'col-md-6'],
+                ['Familias afectadas', r.familias, 'col-md-6'],
+                ['Fecha de registro', r.fecha, 'col-md-6'],
+                ['Estado', r.estado, 'col-md-6'],
+                ['Dirección / referencia', r.direccion, 'col-12'],
+                ['Descripción', r.descripcion, 'col-12'],
+                ['Informante', r.nombre, 'col-md-6'],
+                ['DNI', r.dni, 'col-md-3'],
+                ['Teléfono', r.telefono, 'col-md-3']
+            ];
+            if (r.motivo) campos.push(['Motivo de desestimación', r.motivo, 'col-12']);
+            if (r.ficha) {
+                campos.push(['Ficha EDAN · familias verificadas', r.ficha.familias, 'col-md-6']);
+                campos.push(['Viviendas · personas', `${r.ficha.viviendas} viviendas · ${r.ficha.personas} personas`, 'col-md-6']);
+                campos.push(['Fecha de visita', r.ficha.fecha, 'col-md-6']);
+                campos.push(['Necesidades urgentes', r.ficha.necesidades ?? '—', 'col-12']);
+            }
+            campos.forEach(([etiqueta, valor, clase]) => {
+                const col = document.createElement('div');
+                col.className = clase;
+                const label = document.createElement('label');
+                label.className = 'form-label small fw-bold mb-0';
+                label.textContent = etiqueta;
+                const input = document.createElement('input');
+                input.className = 'form-control form-control-sm';
+                input.readOnly = true;
+                input.value = valor ?? '—';
+                col.append(label, input);
+                cuerpo.append(col);
+            });
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalReporte')).show();
+        }
+    </script>
 
     <script>
         document.querySelectorAll('.distrito-overlay').forEach(shape => {
@@ -400,6 +540,9 @@
             .build();
 
         conexionHub.on("NuevoIncidenteReportado", function(data) {
+            reportesMapa[String(data.incidenteId)] = { id: data.incidenteId, codigo: data.codigo, distrito: data.distritoNombre, sector: data.sector, tipo: data.tipo, severidad: data.severidad, familias: data.familias, fecha: data.fecha, direccion: data.referencia, descripcion: data.descripcion, nombre: data.nombre, dni: data.dni, telefono: data.telefono, estado: data.estado };
+            const contador = document.getElementById("contadorReportes");
+            if (contador) contador.textContent = parseInt(contador.textContent, 10) + 1;
             const filaVacia = document.getElementById('filaSinRegistros');
             if (filaVacia) filaVacia.remove();
 
@@ -412,40 +555,111 @@
 
             const nuevaFila = `
                 <tr class="fila-reciente" data-distrito-id="${data.distritoId}">
+                    <td class="col-seleccion d-none"><input type="checkbox" class="form-check-input chk-reporte" value="${data.incidenteId}" data-distrito="${data.distritoId}" data-tipo="${data.tipo}" data-fecha="${data.fechaIso}" data-sector="${data.sector}" /></td>
                     <td class="fw-bold small">${data.codigo}</td>
                     <td>
                         <div class="fw-bold small text-dark">${data.sector}</div>
                         <small class="text-muted"><i class="bi bi-geo-alt"></i> ${data.referencia}</small>
                     </td>
-                    <td><span class="badge bg-secondary">${data.distritoNombre}</span></td>
+                    <td><span class="badge bg-secondary">${data.distritoNombre}</span><div class="small text-muted mt-1">${data.tipo}</div></td>
                     <td>${badgeSeveridad}</td>
                     <td class="fw-bold text-danger">${data.familias}</td>
                     <td class="small">${data.fecha}</td>
                     <td>
                         <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> ${data.estado}</span>
                     </td>
-                    <td class="text-center">
-                        <form action="/Incidentes/CambiarEstado" method="post" class="d-inline">
-                            <input type="hidden" name="id" value="${data.incidenteId}" />
-                            <input type="hidden" name="nuevoEstado" value="Constatado" />
-                            <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Constatar en terreno">
-                                <i class="bi bi-check-lg"></i>
-                            </button>
-                        </form>
-                        <form action="/Incidentes/CambiarEstado" method="post" class="d-inline">
-                            <input type="hidden" name="id" value="${data.incidenteId}" />
-                            <input type="hidden" name="nuevoEstado" value="Desestimado" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Desestimar reporte">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </form>
-                    </td>
+                    <td class="small text-muted">${data.responsable ?? ""}</td>
                 </tr>
             `;
 
             const tbody = document.getElementById('tbodyIncidentes');
             tbody.insertAdjacentHTML('afterbegin', nuevaFila);
         });
+
+        const btnModo = document.getElementById('btnModoIncidencia');
+        if (btnModo) {
+            const btnSugerir = document.getElementById('btnSugerir');
+            const btnCrear = document.getElementById('btnCrearIncidencia');
+            const btnCancelar = document.getElementById('btnCancelarModo');
+            const chkTodos = document.getElementById('chkTodos');
+            const formIncidencia = document.getElementById('formCrearIncidencia');
+
+            const seleccionados = () => [...document.querySelectorAll('.chk-reporte:checked')];
+
+            function actualizarBarra() {
+                const seleccion = seleccionados();
+                const n = seleccion.length;
+                // Una incidencia agrupa un solo tipo de evento
+                const mezclados = new Set(seleccion.map(c => c.dataset.tipo)).size > 1;
+                btnCrear.textContent = mezclados ? `Tipos distintos (${n})` : `Crear incidencia (${n})`;
+                btnCrear.disabled = n === 0 || mezclados;
+                btnCrear.title = mezclados ? "Los reportes deben ser del mismo tipo de evento" : "";
+            }
+
+            function modoSeleccion(activo) {
+                document.querySelectorAll('.col-seleccion').forEach(c => c.classList.toggle('d-none', !activo));
+                btnModo.classList.toggle('d-none', activo || btnModo.dataset.permitido !== 'true');
+                btnSugerir.classList.toggle('d-none', !activo);
+                btnCrear.classList.toggle('d-none', !activo);
+                btnCancelar.classList.toggle('d-none', !activo);
+                if (!activo) {
+                    document.querySelectorAll('.chk-reporte').forEach(c => c.checked = false);
+                    if (chkTodos) chkTodos.checked = false;
+                }
+                actualizarBarra();
+            }
+
+            btnModo.addEventListener('click', () => modoSeleccion(true));
+            btnCancelar.addEventListener('click', () => modoSeleccion(false));
+
+            if (chkTodos) chkTodos.addEventListener('change', () => {
+                document.querySelectorAll('.chk-reporte').forEach(c => c.checked = chkTodos.checked);
+                actualizarBarra();
+            });
+
+            document.getElementById('tbodyIncidentes').addEventListener('change', e => {
+                if (e.target.classList.contains('chk-reporte')) actualizarBarra();
+            });
+
+            btnSugerir.addEventListener('click', async () => {
+                const sel = seleccionados();
+                if (sel.length === 0) {
+                    alert('Marque primero un reporte de referencia.');
+                    return;
+                }
+                const respuesta = await fetch(`/Incidencias/Sugerir?reporteId=${sel[0].value}`);
+                const ids = await respuesta.json();
+                const otros = ids.filter(id => String(id) !== sel[0].value);
+                if (otros.length === 0) {
+                    alert('No hay otros reportes del mismo distrito y tipo dentro de 4 horas del reporte marcado.');
+                    return;
+                }
+                document.querySelectorAll('.chk-reporte').forEach(c => {
+                    if (ids.includes(parseInt(c.value, 10))) c.checked = true;
+                });
+                actualizarBarra();
+            });
+
+            document.getElementById('modalIncidencia').addEventListener('show.bs.modal', () => {
+                const sel = seleccionados();
+                const primero = sel[0];
+                document.getElementById('inputSectorIncidencia').value = primero ? primero.dataset.sector : '';
+                if (primero) document.getElementById('selectTipoIncidencia').value = primero.dataset.tipo;
+                document.getElementById('textoReportesIncidencia').textContent =
+                    `${sel.length} reporte(s) se agruparán en esta incidencia.`;
+            });
+
+            formIncidencia.addEventListener('submit', () => {
+                formIncidencia.querySelectorAll('input[name="reporteIds"]').forEach(i => i.remove());
+                seleccionados().forEach(c => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'reporteIds';
+                    input.value = c.value;
+                    formIncidencia.appendChild(input);
+                });
+            });
+        }
 
         conexionHub.start().catch(err => console.error("Error al iniciar conexión SignalR:", err));
     </script>

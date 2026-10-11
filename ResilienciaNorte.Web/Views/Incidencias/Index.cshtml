@@ -1,0 +1,293 @@
+@using ResilienciaNorte.Domain
+@using ResilienciaNorte.Repository
+@model IEnumerable<ResilienciaNorte.Domain.Incidencia>
+@{
+    ViewData["Title"] = "Incidencias";
+    ViewData["ModulosTiempoReal"] = "Incidentes,Almacen";
+    var evaluadores = ViewBag.Evaluadores as IList<UsuarioAplicacion> ?? new List<UsuarioAplicacion>();
+    var stockDistrito = ViewBag.StockDistrito as IEnumerable<ExistenciaAlmacen> ?? Enumerable.Empty<ExistenciaAlmacen>();
+    var estadoPedido = ViewBag.EstadoPedido as Dictionary<int, string> ?? new Dictionary<int, string>();
+    bool puedePedirBienes = (bool)ViewBag.PuedePedirBienes;
+    string estadoActual = ViewBag.EstadoSeleccionado as string ?? "";
+    var estados = new[] { EstadoIncidencia.Abierta, EstadoIncidencia.Asignada, EstadoIncidencia.Constatada, EstadoIncidencia.Desestimada, EstadoIncidencia.Atendida };
+    // Bienes del almacén distrital para armar las filas del pedido en el navegador
+    var bienesJson = Json.Serialize(stockDistrito.Select(ex => new
+    {
+        recursoId = ex.RecursoId,
+        nombre = ex.Recurso?.Nombre ?? string.Empty,
+        unidad = ex.Recurso?.UnidadMedida ?? string.Empty,
+        stock = ex.StockDisponible
+    }));
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="fw-bold mb-0 text-dark"><i class="bi bi-collection text-danger"></i> Incidencias</h2>
+        <p class="text-muted small mb-0">Reportes agrupados por hecho. Asigne un evaluador a cada incidencia abierta.</p>
+    </div>
+    <a asp-controller="Incidentes" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Volver al monitor
+    </a>
+</div>
+
+@if (TempData["MensajeExito"] != null)
+{
+    <div class="alert alert-success py-2 d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-check-circle-fill me-1"></i> @TempData["MensajeExito"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+@if (TempData["MensajeError"] != null)
+{
+    <div class="alert alert-danger py-2 d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["MensajeError"]</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a asp-action="Index" class="btn btn-sm @(string.IsNullOrEmpty(estadoActual) ? "btn-dark" : "btn-outline-secondary")">Todas</a>
+    @foreach (var e in estados)
+    {
+        <a asp-action="Index" asp-route-estado="@e" class="btn btn-sm @(estadoActual == e ? "btn-dark" : "btn-outline-secondary")">@e</a>
+    }
+</div>
+
+<div class="small fw-bold text-muted mb-2">@Model.Count() registros</div>
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Código</th>
+                    <th>Distrito</th>
+                    <th>Sector</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Reportes</th>
+                    <th class="text-center">Familias</th>
+                    <th>Estado</th>
+                    <th>Evaluador</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">No hay incidencias registradas.</td>
+                    </tr>
+                }
+                @foreach (var inc in Model)
+                {
+                    var evaluador = evaluadores.FirstOrDefault(u => u.Id == inc.UsuarioEvaluadorId);
+                    // "" = sin pedido, "Editable" = pedido sin decisiones del coordinador, "Bloqueado" = ya decidido
+                    string estadoPedidoInc = estadoPedido.TryGetValue(inc.IncidenciaId, out var ep) ? ep : string.Empty;
+                    <tr>
+                        <td class="fw-bold small font-monospace">@inc.Codigo</td>
+                        <td><span class="badge bg-secondary">@inc.Distrito?.Nombre</span></td>
+                        <td class="fw-bold">@inc.Sector</td>
+                        <td class="small">@inc.TipoEvento</td>
+                        <td class="text-center fw-bold">@inc.Reportes.Count</td>
+                        <td class="text-center fw-bold text-danger" title="@(inc.FichaEdan != null ? "Total verificado en la ficha EDAN" : "Suma de lo reportado por los vecinos")">@(inc.FichaEdan?.FamiliasAfectadas ?? inc.Reportes.Sum(r => r.FamiliasAfectadas))</td>
+                        <td><span class="badge bg-light text-dark border">@inc.Estado</span></td>
+                        <td class="small">@(evaluador?.NombreCompleto ?? "—")</td>
+                        <td>
+                            @if (inc.Estado == EstadoIncidencia.Abierta)
+                            {
+                                <form asp-action="Asignar" method="post" class="d-flex gap-1">
+                                    <input type="hidden" name="id" value="@inc.IncidenciaId" />
+                                    <select name="evaluadorId" class="form-select form-select-sm" required>
+                                        <option value="">-- Evaluador --</option>
+                                        @foreach (var ev in evaluadores)
+                                        {
+                                            <option value="@ev.Id">@ev.NombreCompleto</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-danger text-nowrap">→ Evaluador</button>
+                                </form>
+                            }
+                            else if (inc.Estado == EstadoIncidencia.Constatada || inc.Estado == EstadoIncidencia.Atendida)
+                            {
+                                <div class="d-flex gap-1">
+                                    @if (puedePedirBienes && estadoPedidoInc == string.Empty)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#modalPedirBienes"
+                                                data-id="@inc.IncidenciaId" data-codigo="@inc.Codigo" data-modo="nuevo">
+                                            <i class="bi bi-box-seam"></i> Pedir bienes
+                                        </button>
+                                    }
+                                    @if (puedePedirBienes && estadoPedidoInc == "Editable")
+                                    {
+                                        <button type="button" class="btn btn-sm btn-warning text-nowrap" data-bs-toggle="modal" data-bs-target="#modalPedirBienes"
+                                                data-id="@inc.IncidenciaId" data-codigo="@inc.Codigo" data-modo="editar">
+                                            <i class="bi bi-pencil-square"></i> Editar pedido
+                                        </button>
+                                    }
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalVerSolicitudes"
+                                            data-id="@inc.IncidenciaId" data-codigo="@inc.Codigo" title="Ver bienes solicitados">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Solo lectura: bienes pedidos para la incidencia y su estado -->
+<div class="modal fade" id="modalVerSolicitudes" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fs-6">Bienes solicitados · <span id="verCodigo"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="verContenido"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pedir o editar bienes de una incidencia constatada: varios bienes, todos del almacén de su distrito -->
+<div class="modal fade" id="modalPedirBienes" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form method="post" id="formPedirBienes"
+                  data-url-nuevo="@Url.Action("PedirBienes")" data-url-editar="@Url.Action("EditarPedido")">
+                <input type="hidden" name="incidenciaId" id="pedirIncidenciaId" />
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fs-6"><span id="tituloPedir">Pedir bienes</span> · <span id="pedirCodigo"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Agregue cada bien con su cantidad. El coordinador del distrito aprueba o rechaza cada uno según el stock.</p>
+
+                    <div id="listaBienes"></div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="btnAgregarBien">
+                        <i class="bi bi-plus-lg"></i> Agregar bien
+                    </button>
+
+                    <div class="mt-3">
+                        <label for="pedirJustificacion" class="form-label small fw-bold">Justificación *</label>
+                        <textarea name="justificacion" id="pedirJustificacion" rows="3" maxlength="300" required class="form-control"
+                                  placeholder="Ej: 40 familias sin alimentos tras el desborde"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i><span id="textoEnviar">Enviar solicitud</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const bienesDistrito = @Html.Raw(bienesJson);
+        const solicitudesPorIncidencia = @Html.Raw(ViewBag.SolicitudesJson as string ?? "{}");
+        const escapar = t => String(t ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+
+        document.getElementById("modalVerSolicitudes").addEventListener("show.bs.modal", function (event) {
+            const boton = event.relatedTarget;
+            document.getElementById("verCodigo").textContent = boton.dataset.codigo;
+            const lista = solicitudesPorIncidencia[boton.dataset.id] || [];
+            const contenido = document.getElementById("verContenido");
+
+            if (lista.length === 0) {
+                contenido.innerHTML = '<p class="text-muted mb-0">Esta incidencia aún no tiene bienes solicitados.</p>';
+                return;
+            }
+
+            const filas = lista.map(s => `
+                <tr>
+                    <td class="font-monospace small">${escapar(s.codigo)}</td>
+                    <td>${escapar(s.bien)}</td>
+                    <td class="text-center fw-bold">${escapar(s.cantidad)}</td>
+                    <td>
+                        <span class="badge bg-secondary">${escapar(s.estado)}</span>
+                        ${s.motivo ? `<div class="small text-muted">${escapar(s.motivo)}</div>` : ""}
+                    </td>
+                </tr>`).join("");
+
+            contenido.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Código</th><th>Bien</th><th class="text-center">Cantidad</th><th>Estado</th></tr>
+                        </thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                </div>`;
+        });
+
+        const formPedir = document.getElementById("formPedirBienes");
+        const listaBienes = document.getElementById("listaBienes");
+
+        function agregarFilaBien(recursoSeleccionado = "", cantidad = "") {
+            const fila = document.createElement("div");
+            fila.className = "row g-2 align-items-end mb-2";
+
+            const opciones = bienesDistrito
+                .map(b => `<option value="${b.recursoId}" ${String(b.recursoId) === String(recursoSeleccionado) ? "selected" : ""}>${escapar(b.nombre)} (stock: ${b.stock.toLocaleString("es-PE")} ${escapar(b.unidad)})</option>`)
+                .join("");
+
+            fila.innerHTML = `
+                <div class="col-12 col-sm-7">
+                    <select name="recursoIds" class="form-select form-select-sm" required>
+                        <option value="">-- Seleccione un bien --</option>
+                        ${opciones}
+                    </select>
+                </div>
+                <div class="col-8 col-sm-3">
+                    <input type="number" name="cantidades" min="1" required inputmode="numeric" class="form-control form-control-sm" placeholder="Cantidad" value="${escapar(cantidad)}" />
+                </div>
+                <div class="col-4 col-sm-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger w-100 btn-quitar-bien" title="Quitar bien"><i class="bi bi-trash"></i></button>
+                </div>`;
+
+            fila.querySelector(".btn-quitar-bien").addEventListener("click", function () {
+                // Siempre queda al menos una fila para pedir
+                if (listaBienes.children.length > 1) fila.remove();
+            });
+            listaBienes.appendChild(fila);
+        }
+
+        document.getElementById("btnAgregarBien").addEventListener("click", () => agregarFilaBien());
+
+        const modalPedir = document.getElementById("modalPedirBienes");
+        modalPedir.addEventListener("show.bs.modal", function (event) {
+            const boton = event.relatedTarget;
+            const editar = boton.dataset.modo === "editar";
+            const lineas = editar ? (solicitudesPorIncidencia[boton.dataset.id] || []) : [];
+
+            formPedir.action = editar ? formPedir.dataset.urlEditar : formPedir.dataset.urlNuevo;
+            document.getElementById("tituloPedir").textContent = editar ? "Editar pedido" : "Pedir bienes";
+            document.getElementById("textoEnviar").textContent = editar ? "Guardar cambios" : "Enviar solicitud";
+            document.getElementById("pedirIncidenciaId").value = boton.dataset.id;
+            document.getElementById("pedirCodigo").textContent = boton.dataset.codigo;
+            document.getElementById("pedirJustificacion").value = lineas.length ? lineas[0].justificacion : "";
+
+            listaBienes.innerHTML = "";
+            if (lineas.length) {
+                lineas.forEach(l => agregarFilaBien(l.recursoId, l.cantidad));
+            } else {
+                agregarFilaBien();
+            }
+        });
+
+        // No se puede pedir el mismo bien dos veces en un pedido
+        formPedir.addEventListener("submit", function (event) {
+            const seleccionados = Array.from(formPedir.querySelectorAll("select[name='recursoIds']")).map(s => s.value);
+            if (new Set(seleccionados).size !== seleccionados.length) {
+                event.preventDefault();
+                alert("Un mismo bien no puede repetirse en el pedido.");
+            }
+        });
+    </script>
+}

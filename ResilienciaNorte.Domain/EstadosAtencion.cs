@@ -1,23 +1,24 @@
 namespace ResilienciaNorte.Domain
 {
-    // Estados del ciclo de vida del IncidenteEmergencia (columna Estado, máx. 20 caracteres).
-    // Los valores coinciden con los usados por el filtro del dashboard (Incidentes/Index).
+    // Estado del reporte ciudadano (columna Estado de IncidenteEmergencia).
+    // Un reporte toma el estado de la incidencia a la que pertenece.
     public static class EstadoIncidente
     {
         public const string Reportado = "Reportado";
+        public const string Asignado = "Asignado";
         public const string Constatado = "Constatado";
         public const string Desestimado = "Desestimado";
-        public const string ConAsignacion = "Con Asignación";
-        public const string EnDespacho = "En Despacho";
         public const string Atendido = "Atendido";
     }
 
-    // Estados de la OrdenAtencion (cabecera del Maestro-Detalle).
-    public static class EstadoOrden
+    // Estado de la incidencia creada por el analista a partir de reportes similares.
+    public static class EstadoIncidencia
     {
-        public const string Aprobada = "Aprobada";
-        public const string EnDespacho = "EnDespacho";
-        public const string Entregado = "Entregado";
-        public const string Anulado = "Anulado";
+        public const string Abierta = "Abierta";
+        public const string Asignada = "Asignada";
+        public const string Constatada = "Constatada";
+        public const string Desestimada = "Desestimada";
+        // Todos sus bienes fueron despachados
+        public const string Atendida = "Atendida";
     }
 }

@@ -15,10 +15,13 @@ namespace ResilienciaNorte.Repository
         public DbSet<IncidenteEmergencia> IncidentesEmergencia { get; set; }
         public DbSet<VerificacionOtpCiudadano> VerificacionesOtpCiudadano { get; set; }
         public DbSet<RecursoAlmacen> RecursosAlmacen { get; set; }
-        public DbSet<OrdenAtencion> OrdenesAtencion { get; set; }
-        public DbSet<DetalleOrden> DetallesOrden { get; set; }
+        public DbSet<Almacen> Almacenes { get; set; }
+        public DbSet<ExistenciaAlmacen> ExistenciasAlmacen { get; set; }
         public DbSet<MovimientoAlmacen> MovimientosAlmacen { get; set; }
-        public DbSet<SolicitudReabastecimiento> SolicitudesReabastecimiento { get; set; }
+        public DbSet<Solicitud> Solicitudes { get; set; }
+        public DbSet<Incidencia> Incidencias { get; set; }
+        public DbSet<FichaEdan> FichasEdan { get; set; }
+        public DbSet<Provincia> Provincias { get; set; }
         public DbSet<AuditoriaSistema> AuditoriaSistema { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -56,6 +59,31 @@ namespace ResilienciaNorte.Repository
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity<Incidencia>(entity =>
+            {
+                entity.HasKey(e => e.IncidenciaId);
+                entity.HasIndex(e => e.Codigo).IsUnique();
+                entity.Property(e => e.Codigo).HasMaxLength(30).IsRequired();
+                entity.Property(e => e.Sector).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.TipoEvento).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Estado).HasMaxLength(20).HasDefaultValue(EstadoIncidencia.Abierta);
+
+                entity.HasOne(e => e.Distrito)
+                      .WithMany()
+                      .HasForeignKey(e => e.DistritoId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(e => e.Reportes)
+                      .WithOne(r => r.Incidencia)
+                      .HasForeignKey(r => r.IncidenciaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.FichaEdan)
+                      .WithOne(f => f.Incidencia)
+                      .HasForeignKey<FichaEdan>(f => f.IncidenciaId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             modelBuilder.Entity<RecursoAlmacen>(entity =>
             {
                 entity.HasKey(e => e.RecursoId);
@@ -64,11 +92,42 @@ namespace ResilienciaNorte.Repository
                 entity.Property(e => e.Nombre).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Categoria).HasMaxLength(50).IsRequired();
                 entity.Property(e => e.UnidadMedida).HasMaxLength(20).IsRequired();
+            });
 
-                // 2. Relación con RecursoAlmacen
+            modelBuilder.Entity<Almacen>(entity =>
+            {
+                entity.HasKey(e => e.AlmacenId);
+                entity.Property(e => e.Nombre).HasMaxLength(80).IsRequired();
+                entity.Property(e => e.Nivel).HasMaxLength(20).IsRequired();
+
                 entity.HasOne(e => e.Distrito)
-                      .WithMany(d => d.Recursos) // Enlaza con la colección de Distrito.cs
+                      .WithMany()
                       .HasForeignKey(e => e.DistritoId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Provincia)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProvinciaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.AlmacenPadre)
+                      .WithMany()
+                      .HasForeignKey(e => e.AlmacenPadreId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ExistenciaAlmacen>(entity =>
+            {
+                entity.HasKey(e => new { e.AlmacenId, e.RecursoId });
+
+                entity.HasOne(e => e.Almacen)
+                      .WithMany(a => a.Existencias)
+                      .HasForeignKey(e => e.AlmacenId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Recurso)
+                      .WithMany()
+                      .HasForeignKey(e => e.RecursoId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -79,37 +138,6 @@ namespace ResilienciaNorte.Repository
                 entity.Property(e => e.Telefono).HasMaxLength(15).IsRequired();
                 entity.Property(e => e.CodigoIncidente).HasMaxLength(30).IsRequired();
                 entity.Property(e => e.PinHash).HasMaxLength(128).IsRequired();
-            });
-
-            // ── Maestro-Detalle (OrdenAtencion -> DetalleOrden) ───────────────
-            modelBuilder.Entity<OrdenAtencion>(entity =>
-            {
-                entity.HasKey(e => e.OrdenId);
-                entity.HasIndex(e => e.CodigoOrden).IsUnique();
-                entity.Property(e => e.CodigoOrden).HasMaxLength(30).IsRequired();
-                entity.Property(e => e.Estado).HasMaxLength(20).HasDefaultValue("Aprobada");
-
-                // Relación 1 a 1 con Incidente
-                entity.HasOne(e => e.Incidente)
-                      .WithOne()
-                      .HasForeignKey<OrdenAtencion>(e => e.IncidenteId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Relación 1 a N con DetalleOrden (Borrado en Cascada)
-                entity.HasMany(e => e.Detalles)
-                      .WithOne(d => d.OrdenAtencion)
-                      .HasForeignKey(d => d.OrdenId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            modelBuilder.Entity<DetalleOrden>(entity =>
-            {
-                entity.HasKey(e => e.DetalleId);
-
-                entity.HasOne(e => e.Recurso)
-                      .WithMany()
-                      .HasForeignKey(e => e.RecursoId)
-                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<MovimientoAlmacen>(entity =>
@@ -123,23 +151,28 @@ namespace ResilienciaNorte.Repository
                       .HasForeignKey(e => e.RecursoId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(e => e.Distrito)
+                entity.HasOne(e => e.Almacen)
                       .WithMany()
-                      .HasForeignKey(e => e.DistritoId)
+                      .HasForeignKey(e => e.AlmacenId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            modelBuilder.Entity<SolicitudReabastecimiento>(entity =>
+            modelBuilder.Entity<Solicitud>(entity =>
             {
                 entity.HasKey(e => e.SolicitudId);
                 entity.HasIndex(e => e.CodigoSolicitud).IsUnique();
                 entity.Property(e => e.CodigoSolicitud).HasMaxLength(30).IsRequired();
-                entity.Property(e => e.NivelDestino).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.Tipo).HasMaxLength(20).IsRequired();
                 entity.Property(e => e.Estado).HasMaxLength(20).HasDefaultValue("Pendiente");
 
-                entity.HasOne(e => e.DistritoOrigen)
+                entity.HasOne(e => e.AlmacenSolicitante)
                       .WithMany()
-                      .HasForeignKey(e => e.DistritoOrigenId)
+                      .HasForeignKey(e => e.AlmacenSolicitanteId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.AlmacenProveedor)
+                      .WithMany()
+                      .HasForeignKey(e => e.AlmacenProveedorId)
                       .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.Recurso)

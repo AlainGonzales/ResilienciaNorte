@@ -5,6 +5,33 @@
     var usuario = ViewBag.UsuarioActual as ResilienciaNorte.Domain.UsuarioAplicacion;
 }
 
+<script>
+    // Filtros dinámicos: se aplican al cambiar cada campo; el código espera 500 ms después de la última tecla
+    document.addEventListener("DOMContentLoaded", function () {
+        const formFiltros = document.getElementById("formFiltrosPortal");
+        if (!formFiltros) return;
+
+        formFiltros.querySelectorAll(".filtro-portal").forEach(function (campo) {
+            campo.addEventListener("change", function () { formFiltros.submit(); });
+        });
+
+        const buscar = formFiltros.querySelector("input[name='buscar']");
+        let temporizador = null;
+        buscar.addEventListener("input", function () {
+            clearTimeout(temporizador);
+            temporizador = setTimeout(function () { formFiltros.submit(); }, 500);
+        });
+
+        // Tras recargar, el cursor vuelve al final del código buscado
+        if (buscar.value) {
+            const valor = buscar.value;
+            buscar.focus();
+            buscar.value = "";
+            buscar.value = valor;
+        }
+    });
+</script>
+
 <div class="container py-4">
     <div class="text-center mb-5">
         <h2 class="fw-bold text-dark"><i class="bi bi-shield-check text-danger"></i> Módulo de Reportes de Emergencia</h2>
@@ -72,14 +99,14 @@
 
             <!-- Panel de Filtros -->
             <div class="card-body bg-light border-bottom">
-                <form asp-action="Portal" method="get" class="row g-3">
+                <form asp-action="Portal" method="get" class="row g-3" id="formFiltrosPortal">
                     <div class="col-md-3">
                         <label class="form-label small fw-bold">Buscar Código</label>
-                        <input type="text" name="buscar" class="form-control form-control-sm" placeholder="ALT-2026-XXXX" value="@ViewBag.BusquedaActiva" />
+                        <input type="text" name="buscar" class="form-control form-control-sm" placeholder="ALT-2026-XXXX" value="@ViewBag.BusquedaActiva" autocomplete="off" />
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small fw-bold">Estado</label>
-                        <select name="estado" class="form-select form-select-sm">
+                        <select name="estado" class="form-select form-select-sm filtro-portal">
                             <option value="">-- Todos los estados --</option>
                             @if (ViewBag.Estados != null)
                             {
@@ -92,17 +119,14 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-bold">Desde</label>
-                        <input type="date" name="fechaDesde" class="form-control form-control-sm" value="@ViewBag.FechaDesde" />
+                        <input type="date" name="fechaDesde" class="form-control form-control-sm filtro-portal" value="@ViewBag.FechaDesde" />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-bold">Hasta</label>
-                        <input type="date" name="fechaHasta" class="form-control form-control-sm" value="@ViewBag.FechaHasta" />
+                        <input type="date" name="fechaHasta" class="form-control form-control-sm filtro-portal" value="@ViewBag.FechaHasta" />
                     </div>
                     <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary btn-sm fw-bold w-100">
-                            <i class="bi bi-search"></i> Filtrar
-                        </button>
-                        <a asp-action="Portal" class="btn btn-secondary btn-sm fw-bold">
+                        <a asp-action="Portal" class="btn btn-secondary btn-sm fw-bold" title="Limpiar filtros">
                             <i class="bi bi-arrow-clockwise"></i>
                         </a>
                     </div>
@@ -136,7 +160,7 @@
             <!-- Tabla de Reportes -->
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light small">
+                    <thead class="table-dark small">
                         <tr>
                             <th>Código</th>
                             <th>Tipo de Evento</th>
@@ -282,9 +306,9 @@
                         </div>
                     </div>
                     <div class="modal-footer bg-light py-2">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
                         <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
-                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                            <i class="bi bi-floppy me-1"></i> Registrar Alerta
                         </button>
                     </div>
                 </form>
@@ -441,9 +465,9 @@
                         </div>
                     </div>
                     <div class="modal-footer bg-light py-2">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-arrow-left me-1"></i>Cancelar</button>
                         <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
-                            <i class="bi bi-send-fill me-1"></i> Registrar Alerta
+                            <i class="bi bi-floppy me-1"></i> Registrar Alerta
                         </button>
                     </div>
                 </form>

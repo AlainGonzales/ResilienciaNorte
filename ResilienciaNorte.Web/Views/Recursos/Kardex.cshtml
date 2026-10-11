@@ -1,23 +1,44 @@
-﻿@model IEnumerable<ResilienciaNorte.Domain.MovimientoAlmacen>
+@model IEnumerable<ResilienciaNorte.Domain.MovimientoAlmacen>
+@using ResilienciaNorte.Domain
 @{
-    var recurso = ViewBag.Recurso as ResilienciaNorte.Domain.RecursoAlmacen;
-    ViewData["Title"] = "Kardex de Existencias";
+    var almacen = ViewBag.Almacen as Almacen;
+    var bienes = ViewBag.Bienes as IEnumerable<ExistenciaAlmacen> ?? Enumerable.Empty<ExistenciaAlmacen>();
+    int? recursoFiltro = ViewBag.RecursoFiltro as int?;
+    var correos = ViewBag.Correos as Dictionary<string, string> ?? new Dictionary<string, string>();
+    ViewData["Title"] = "Kardex del Almacén";
+    ViewData["ModulosTiempoReal"] = "Almacen";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="fw-bold mb-0 text-dark"><i class="bi bi-journal-text text-primary"></i> Kardex Físico Inmutable</h3>
-        <p class="text-muted small mb-0">Bien: <strong>@recurso?.Nombre</strong> (@recurso?.CodigoBAH) | Almacén: <strong>@recurso?.Distrito?.Nombre</strong></p>
+        <p class="text-muted small mb-0">Almacén: <strong>@almacen?.Nombre</strong> <span class="badge bg-light text-dark border">@almacen?.Nivel</span></p>
     </div>
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Existencias</a>
 </div>
 
+<form method="get" class="row g-2 align-items-center mb-3">
+    <div class="col-12 col-md-6 col-xl-5">
+        <select name="almacenId" asp-items="ViewBag.Almacenes" class="form-select fw-semibold" onchange="this.form.recursoId.value=''; this.form.submit()"></select>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+        <select name="recursoId" class="form-select" onchange="this.form.submit()">
+            <option value="">Todos los bienes</option>
+            @foreach (var b in bienes)
+            {
+                <option value="@b.RecursoId" selected="@(recursoFiltro == b.RecursoId)">@b.Recurso?.Nombre</option>
+            }
+        </select>
+    </div>
+</form>
+
+<div class="small fw-bold text-muted mb-2">@Model.Count() registros</div>
 <div class="card shadow-sm border-0">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-dark">
                 <tr>
-                    <th>Fecha / Hora (UTC)</th>
+                    <th>Fecha / Hora</th>
+                    <th>Bien</th>
                     <th>Tipo</th>
                     <th>Concepto</th>
                     <th>Documento</th>
@@ -32,13 +53,14 @@
                 @if (!Model.Any())
                 {
                     <tr id="filaSinMovimientos">
-                        <td colspan="9" class="text-center py-4 text-muted">Sin movimientos registrados para este recurso.</td>
+                        <td colspan="10" class="text-center py-4 text-muted">Sin movimientos registrados.</td>
                     </tr>
                 }
                 @foreach (var m in Model)
                 {
                     <tr>
                         <td class="small">@m.FechaHora.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="small fw-bold">@m.Recurso?.Nombre</td>
                         <td>
                             <span class="badge @(m.TipoMovimiento == "ENTRADA" ? "bg-success" : "bg-danger")">
                                 @m.TipoMovimiento
@@ -52,7 +74,7 @@
                             @(m.TipoMovimiento == "ENTRADA" ? "+" : "-")@m.Cantidad
                         </td>
                         <td class="text-center fw-bold">@m.StockPosterior</td>
-                        <td class="small text-muted">@m.UsuarioResponsableId</td>
+                        <td class="small text-muted">@(correos.TryGetValue(m.UsuarioResponsableId, out var correo) ? correo : m.UsuarioResponsableId)</td>
                     </tr>
                 }
             </tbody>
@@ -63,7 +85,8 @@
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <script>
-        const recursoIdActual = @(recurso?.RecursoId ?? 0);
+        const almacenIdActual = @(almacen?.AlmacenId ?? 0);
+        const recursoFiltroActual = @(recursoFiltro.HasValue ? recursoFiltro.Value.ToString() : "0");
 
         const conexionKardex = new signalR.HubConnectionBuilder()
             .withUrl("/emergenciaHub")
@@ -71,32 +94,34 @@
             .build();
 
         conexionKardex.on("NuevoMovimientoKardex", function (data) {
-            if (data.recursoId === recursoIdActual) {
-                const filaVacia = document.getElementById("filaSinMovimientos");
-                if (filaVacia) filaVacia.remove();
+            const mismoAlmacen = data.almacenId === almacenIdActual;
+            const coincideBien = recursoFiltroActual === 0 || data.recursoId === recursoFiltroActual;
+            if (!mismoAlmacen || !coincideBien) return;
 
-                const esEntrada = data.tipo === "ENTRADA";
-                const badgeColor = esEntrada ? "bg-success" : "bg-danger";
-                const textoSigno = esEntrada ? "+" : "-";
-                const textoColor = esEntrada ? "text-success" : "text-danger";
+            const filaVacia = document.getElementById("filaSinMovimientos");
+            if (filaVacia) filaVacia.remove();
 
-                const nuevaFila = `
-                    <tr style="animation: filaNueva 3s ease-out;">
-                        <td class="small">${data.fechaHora}</td>
-                        <td><span class="badge ${badgeColor}">${data.tipo}</span></td>
-                        <td class="small fw-bold">${data.concepto}</td>
-                        <td class="small text-muted">${data.documento}</td>
-                        <td class="small">${data.origenDestino}</td>
-                        <td class="text-center text-muted">${data.stockAnterior}</td>
-                        <td class="text-center fw-bold ${textoColor}">${textoSigno}${data.cantidad}</td>
-                        <td class="text-center fw-bold">${data.stockPosterior}</td>
-                        <td class="small text-muted">${data.responsable}</td>
-                    </tr>
-                `;
+            const esEntrada = data.tipo === "ENTRADA";
+            const badgeColor = esEntrada ? "bg-success" : "bg-danger";
+            const textoSigno = esEntrada ? "+" : "-";
+            const textoColor = esEntrada ? "text-success" : "text-danger";
 
-                const tbody = document.getElementById("tbodyKardex");
-                tbody.insertAdjacentHTML("afterbegin", nuevaFila);
-            }
+            const nuevaFila = `
+                <tr style="animation: filaNueva 3s ease-out;">
+                    <td class="small">${data.fechaHora}</td>
+                    <td class="small fw-bold">${data.bien ?? ""}</td>
+                    <td><span class="badge ${badgeColor}">${data.tipo}</span></td>
+                    <td class="small fw-bold">${data.concepto}</td>
+                    <td class="small text-muted">${data.documento}</td>
+                    <td class="small">${data.origenDestino}</td>
+                    <td class="text-center text-muted">${data.stockAnterior}</td>
+                    <td class="text-center fw-bold ${textoColor}">${textoSigno}${data.cantidad}</td>
+                    <td class="text-center fw-bold">${data.stockPosterior}</td>
+                    <td class="small text-muted">${data.responsable}</td>
+                </tr>
+            `;
+
+            document.getElementById("tbodyKardex").insertAdjacentHTML("afterbegin", nuevaFila);
         });
 
         conexionKardex.start().catch(err => console.error("Error al conectar SignalR en Kardex:", err));

@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ResilienciaNorte.Domain
 {
+    // Catálogo de Bienes de Ayuda Humanitaria. El stock vive en ExistenciaAlmacen.
     [Table("RecursosAlmacen")]
     public class RecursoAlmacen
     {
@@ -24,33 +25,5 @@ namespace ResilienciaNorte.Domain
         [Required]
         [StringLength(20)]
         public string UnidadMedida { get; set; } = "Unidades"; // Unidades, Rollos, Planchas, Kits
-
-        [Range(0, 1000000)]
-        public int StockDisponible { get; set; } = 0;
-
-        [Range(0, 100000)]
-        public int StockMinimo { get; set; } = 10;
-
-        // Clave foránea al distrito custodio
-        [Required]
-        public int DistritoId { get; set; }
-
-        [ForeignKey(nameof(DistritoId))]
-        public Distrito? Distrito { get; set; }
-
-        // Métodos de dominio (Experto en información)
-        public bool EsStockCritico() => StockDisponible <= StockMinimo;
-
-        public void DescontarStock(int cantidad)
-        {
-            if (cantidad > StockDisponible)
-                throw new System.InvalidOperationException($"Stock insuficiente para {Nombre}.");
-            StockDisponible -= cantidad;
-        }
-
-        public void IncrementarStock(int cantidad)
-        {
-            StockDisponible += cantidad;
-        }
     }
 }

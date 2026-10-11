@@ -55,9 +55,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<IIncidenteService, IncidenteService>();
 builder.Services.AddScoped<IRecursoService, RecursoService>();
 
-// Triaje EDAN y Maestro-Detalle de órdenes de atención
-builder.Services.AddScoped<IEvaluacionService, EvaluacionService>();
-builder.Services.AddScoped<IOrdenAtencionService, OrdenAtencionService>();
+// Incidencias: agrupación por el analista y resolución por el evaluador de campo
+builder.Services.AddScoped<IIncidenciaService, IncidenciaService>();
+// La bitácora guarda cada registro y además avisa en vivo a las pantallas abiertas
+builder.Services.AddScoped<AuditoriaService>();
+builder.Services.AddScoped<IAuditoriaService>(sp => new ResilienciaNorte.Web.Services.AuditoriaEnTiempoReal(
+    sp.GetRequiredService<AuditoriaService>(),
+    sp.GetRequiredService<Microsoft.AspNetCore.SignalR.IHubContext<ResilienciaNorte.Web.Hubs.EmergenciaHub>>()));
 
 // Patrón Strategy: criterios de priorización de severidad (el clasificador los combina)
 builder.Services.AddSingleton<ISeveridadStrategy, SeveridadPorFamiliasStrategy>();
